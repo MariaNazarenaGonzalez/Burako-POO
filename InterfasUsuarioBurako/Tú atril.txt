@@ -1,0 +1,2 @@
+Tú atril:
+1[comodín-rojo];2[13-amarillo];3[6-negro];4[2-amarillo];5[11-amarrillo]

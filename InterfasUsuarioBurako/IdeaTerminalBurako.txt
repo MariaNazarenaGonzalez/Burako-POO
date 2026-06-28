@@ -1,0 +1,88 @@
+Menú Principal:
+1- iniciar juego
+2- salir
+¿Qué quieres hacer?:1
+¿Quiénes van a jugar?
+1_ ingrese un nombre: Pepe
+2_ ingrese un nombre: Juan
+inicia el juego...
+repartiendo las cartas...
+
+Es turno de Pepe:
+	La mesa se ve así:
+El lado de Juan
+
+El lado de Pepe (tú)
+
+El poso se ve así:
+
+Tú atril:
+	1[comodín-rojo]; 2[13-amarillo]; 3[6-negro]; 4[2-amarillo]; 5[11-amarrillo]; 6[4-rojo]; 7[7-amarillo]; 8[5-rojo]; 9[4-azul]; 10[5-azul]; 11[6-amarillo]; 12[13-amarillo];
+opciones:
+1- Agarrar de mazo
+2- Agarrar el pozo
+¿Qué quieres hacer?: 2
+el pozo esta vacío mejor agarra del mazo.
+opciones:
+1- Agarrar de la pila
+2- Agarrar el pozo
+¿Qué quieres hacer?: 1
+Agarraste una ficha del mazo.
+Tú atril:
+	1[comodín-rojo]; 2[13-amarillo]; 3[6-negro]; 4[2-amarillo]; 5[11-amarrillo]; 6[4-rojo]; 7[7-amarillo]; 8[5-rojo]; 9[4-azul]; 10[5-azul]; 11[6-amarillo]; 12[13-amarillo]; 13[6-negro]
+opciones:
+1- Bajar un Juego
+2- Apoyar un juego de la Mesa
+3- Ceder el turno/Poner una Ficha en el poso
+¿Qué quieres hacer?:2
+------------------------------------------------------------------------------------------------------------------------------------------------------------
+no hay juegos en la mesa mejor Baja un juego.
+opciones:
+1- Bajar un Juego
+2- Apoyar un juego de la Mesa
+3- Ceder el turno/Poner una Ficha en el poso
+¿Qué quieres hacer?:1
+	La mesa se ve así:
+El lado de Juan
+	
+El lado de Pepe (tú)
+	
+Tú atril:
+	1[comodín-rojo];2[13-amarillo];3[6-negro];4[2-amarillo];5[11-amarrillo]; 6[4-rojo];7[7-amarillo];8[5-rojo];9[4-azul];10[5-azul];11[6-amarillo];12[13-amarillo];13[6-negro]
+elige fichas(indique fin de selección con ;): 3,11,13,;
+Bajaste un juego con éxito.
+	La mesa se ve así:
+El lado de Juan
+	
+El lado de Pepe (tú)
+	1.[6-negro]+[6-amarillo]+[6-negro]
+Tú atril:
+	1[comodín-rojo];2[13-amarillo];3[2-amarillo];4[11-amarrillo]; 5[4-rojo];6[7-amarillo];7[5-rojo];8[4-azul];9[5-azul]; 10[13-amarillo]
+opciones:
+1- Bajar un Juego
+2- Apoyar un juego de la Mesa
+3- Ceder el turno/Poner una Ficha en el poso
+¿Qué quieres hacer?: 3
+El poso se ve así:
+
+Tú atril:
+	1[comodín-rojo];2[13-amarillo];3[2-amarillo];4[11-amarrillo];5[4-rojo];6[7-amarillo];7[5-rojo];8[4-azul];9[5-azul];10[13-amarillo]
+elige una ficha: 10
+Tú atril:
+	1[comodín-rojo];2[13-amarillo];3[2-amarillo];4[11-amarrillo];5[4-rojo];6[7-amarillo];7[5-rojo];8[4-azul];9[5-azul];
+El poso se ve así:
+	[13-amarillo];
+Es turno de Juan:
+	La mesa se ve así:
+El lado de Pepe
+	
+El lado de Juan (tú)
+	1.[6-negro]+[6-amarillo]+[6-negro]
+El poso se ve así:
+	[13-amarillo];
+Tú atril:
+	1[comodín-rojo];2[13-amarillo];3[6-negro];4[2-amarillo];5[11-amarrillo];
+opciones:
+1- Agarrar de la pila
+2- Agarrar el poso
+¿Qué quieres hacer?:

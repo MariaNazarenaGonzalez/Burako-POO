@@ -1,0 +1,16 @@
+principal:
+1- iniciar juego
+2- salir
+¿Qué quieres hacer?:
+
+
+opciones a:
+1- Agarrar de la pila
+2- Agarrar el poso
+¿Qué quieres hacer?:
+
+opciones b:
+1- Bajar un Juego
+2- Apoyar un juego de la Mesa
+3- Ceder el turno/Poner una Ficha en el poso
+¿Qué quieres hacer?:
