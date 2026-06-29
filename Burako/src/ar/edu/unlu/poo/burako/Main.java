@@ -1,13 +1,25 @@
+package ar.edu.unlu.poo.burako;
 import ar.edu.unlu.poo.burako.controlador.Controlador;
 import ar.edu.unlu.poo.burako.modelo.Burako;
+import ar.edu.unlu.poo.burako.modelo.IBurako;
 import ar.edu.unlu.poo.burako.vista.VistaConsola;
 import ar.edu.unlu.poo.burako.vista.VistaGrafica;
 
 import javax.swing.*;
 
+/**
+ * Punto de entrada de la aplicación.
+ *
+ * MODIFICADO (Fase 4):
+ * - La variable local 'burako' ahora está declarada como IBurako.
+ *   Burako concreto sigue siendo instanciado aquí (necesario para la construcción),
+ *   pero toda la wiring posterior usa la interfaz.
+ * - crearVista recibe IBurako para reforzar que el Controlador no necesita
+ *   conocer la implementación concreta.
+ */
 public class Main {
     public static void main(String[] args) {
-        Burako burako = new Burako();
+        IBurako burako = new Burako();
         burako.setNombres("Jugador1", "Jugador2");
 
         SwingUtilities.invokeLater(() -> {
@@ -32,7 +44,7 @@ public class Main {
         return seleccion == 1;
     }
 
-    private static void crearVista(Burako burako, int jugador, boolean usarConsola) {
+    private static void crearVista(IBurako burako, int jugador, boolean usarConsola) {
         var controlador = new Controlador(burako);
         burako.agregarObservador(controlador);
         if (usarConsola) {

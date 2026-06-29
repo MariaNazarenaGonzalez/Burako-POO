@@ -13,7 +13,7 @@ import javax.swing.text.StyledDocument;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.util.ArrayList;
+import java.util.List;
 
 public class VistaConsola extends JFrame implements VistaJuego {
     private final Controlador controlador;
@@ -332,9 +332,6 @@ public class VistaConsola extends JFrame implements VistaJuego {
         }
     }
 
-    public void mesaje(Exception e) {
-        println(e.getMessage());
-    }
 
     private void scrollToBottom() {//SCROLL AUTOMATICO
         SwingUtilities.invokeLater(() -> {
@@ -389,7 +386,7 @@ public class VistaConsola extends JFrame implements VistaJuego {
     }
 
     private void getAtril(int miTurno) {
-        ArrayList<FichaMostrable> listaAtril=controlador.getAtril(miTurno);
+        List<FichaMostrable> listaAtril=controlador.getAtril(miTurno);
         int i=1;
 
         for(FichaMostrable f: listaAtril){
@@ -403,7 +400,7 @@ public class VistaConsola extends JFrame implements VistaJuego {
     }
 
     private void getPozo() {
-        ArrayList<FichaMostrable> listaPozo=controlador.getPozo();
+        List<FichaMostrable> listaPozo=controlador.getPozo();
         int i=1;
         for(FichaMostrable f: listaPozo){
             print(String.valueOf(i) + "-[");
@@ -417,7 +414,7 @@ public class VistaConsola extends JFrame implements VistaJuego {
 
     private void getJuegos(int jugador) {
         int i=1;
-        ArrayList<JuegoMostrable> listaJuegos = controlador.getJuegos(jugador);
+        List<JuegoMostrable> listaJuegos = controlador.getJuegos(jugador);
         for(JuegoMostrable j:listaJuegos){
             print("   "+ i +"-");
             printJuego(j);
@@ -427,7 +424,7 @@ public class VistaConsola extends JFrame implements VistaJuego {
     }
 
     public void printJuego(JuegoMostrable j) {
-        ArrayList<FichaMostrable> listaJuego=j.getJuego();
+        List<FichaMostrable> listaJuego=j.getJuego();
         for(FichaMostrable f: listaJuego){
             print("[");
             printColor(f.getColor().name(),f.getColor().name());

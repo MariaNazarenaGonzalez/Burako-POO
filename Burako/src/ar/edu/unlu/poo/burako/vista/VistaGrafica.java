@@ -10,7 +10,7 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
-import java.util.ArrayList;
+import java.util.List;
 import java.util.LinkedHashSet;
 import java.util.Set;
 
@@ -203,12 +203,8 @@ public class VistaGrafica extends JFrame implements VistaJuego {
         mostrarMesa();
     }
 
-    @Override
-    public void mesaje(Exception e) {
-        appendEvento(e.getMessage());
-    }
 
-    private void renderizarJuegos(JPanel panel, ArrayList<JuegoMostrable> juegos, String mensajeVacio) {
+    private void renderizarJuegos(JPanel panel, List<JuegoMostrable> juegos, String mensajeVacio) {
         panel.removeAll();
         if (juegos.isEmpty()) {
             panel.add(crearEtiqueta(mensajeVacio));
@@ -223,7 +219,7 @@ public class VistaGrafica extends JFrame implements VistaJuego {
         panel.repaint();
     }
 
-    private void renderizarFichas(JPanel panel, ArrayList<FichaMostrable> fichas, String mensajeVacio) {
+    private void renderizarFichas(JPanel panel, List<FichaMostrable> fichas, String mensajeVacio) {
         panel.removeAll();
         if (fichas.isEmpty()) {
             panel.add(crearEtiqueta(mensajeVacio));
@@ -241,7 +237,7 @@ public class VistaGrafica extends JFrame implements VistaJuego {
         panel.repaint();
     }
 
-    private void renderizarAtril(ArrayList<FichaMostrable> atril) {
+    private void renderizarAtril(List<FichaMostrable> atril) {
         indicesSeleccionados.clear();
         listaAtril.clearSelection();
         modeloAtril.clear();
