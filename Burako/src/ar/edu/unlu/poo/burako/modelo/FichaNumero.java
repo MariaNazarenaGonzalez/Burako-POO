@@ -2,6 +2,7 @@ package ar.edu.unlu.poo.burako.modelo;
 
 /**
  * Números posibles de una ficha de Burako, incluyendo el comodín.
+ * Renombrado de Ficha_Num a FichaNumero siguiendo convenciones Java (PascalCase).
  * Los valores numéricos usan prefijo N para evitar identificadores inválidos.
  */
 public enum FichaNumero {

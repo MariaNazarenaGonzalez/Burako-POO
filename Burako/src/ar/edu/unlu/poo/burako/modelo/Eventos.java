@@ -2,6 +2,8 @@ package ar.edu.unlu.poo.burako.modelo;
 
 /**
  * Eventos que el modelo emite hacia los observadores.
+ * Sin cambios respecto al original; mantener estos nombres preserva compatibilidad
+ * con el Controlador y las Vistas existentes.
  */
 public enum Eventos {
     tomarMazo_NO_exitoso,

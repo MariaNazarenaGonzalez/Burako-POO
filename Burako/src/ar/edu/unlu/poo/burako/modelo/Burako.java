@@ -4,58 +4,40 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Implementación principal del modelo de Burako.
- * Orquesta los colaboradores del dominio e implementa IBurako.
+ * Orquestador principal del modelo de Burako.
+ * Implementa IBurako (la interfaz que expone el Controlador).
  *
- * MODIFICADO respecto al original:
+ * Responsabilidad única: coordinar los colaboradores estructurales
+ * (GestorTurnos, GestorMuertos, Jugador, Mazo, Pozo) usando ReglasDeJuego
+ * como árbitro de todas las decisiones de negocio.
  *
- * 1. Implementa IBurako (nueva interfaz) en lugar de solo Observado.
- *    El Controlador ahora depende de IBurako, no de Burako directamente (DIP).
+ * Flujo de cada acción pública:
+ *   1. Construir ContextoJugada con el estado actual relevante.
+ *   2. Consultar ReglasDeJuego.validarXxx(ctx) → ResultadoValidacion.
+ *   3a. Si válido:   ejecutar la operación estructural, notificar evento exitoso.
+ *   3b. Si inválido: registrar mensaje, notificar evento _NO_exitoso.
  *
- * 2. La lógica de turno fue extraída a GestorTurnos:
- *    - validarTurno(), validarEstado(), avanzarTurno(), puedeTomar(), puedeJugar()
- *    ya no existen en esta clase.
- *
- * 3. La lógica de muertos fue extraída a GestorMuertos:
- *    - El bloque if (!jugador.yaTomoMuerto() && !muertos.isEmpty()) { ... }
- *    que se duplicaba en agregarPozo(), bajarJuego() y apoyarJuego() fue
- *    reemplazado por gestorMuertos.intentarAsignarMuerto(jugador).
- *
- * 4. getPuntajesFinales() fue reemplazado por getResultados() que retorna
- *    List<ResultadoJugador> en lugar de un String formateado.
- *    La Vista decide cómo mostrar los resultados (SRP / MVC).
- *
- * 5. getUltimoMensajeError() reemplaza el transporte de Exception como
- *    parámetro del Observer. Cuando una acción falla, Burako guarda el mensaje
- *    y notifica el evento _NO_exitoso. El Controlador consulta el mensaje y
- *    lo pasa a la Vista sin exponer tipos de excepción del modelo.
- *
- * 6. getJugador() sigue siendo public para compatibilidad con los tests
- *    existentes que acceden directamente a Jugador.
+ * Burako NO contiene ninguna validación de negocio propia.
  */
 public class Burako implements IBurako {
 
-    // ── Colaboradores del dominio ──────────────────────────────────────────────
-    private final List<Jugador>    jugadores;
-    private final Mazo             mazo;
-    private final Pozo             pozo;
-    private final GestorTurnos     gestorTurnos;
-    private final GestorMuertos    gestorMuertos;
+    private final List<Jugador> jugadores;
+    private final Mazo          mazo;
+    private final Pozo          pozo;
+    private final GestorTurnos  gestorTurnos;
+    private final GestorMuertos gestorMuertos;
 
-    // ── Estado del Observer ────────────────────────────────────────────────────
-    private final List<Observador> observadores = new ArrayList<>();
+    private final List<Observador> observadores       = new ArrayList<>();
     private String                 ultimoMensajeError = "";
 
     public Burako() {
         mazo = new Mazo();
         pozo = new Pozo();
 
-        // Preparar muertos (11 fichas cada uno) antes de repartir
         List<Ficha> fichasMuerto1 = mazo.sacar(11);
         List<Ficha> fichasMuerto2 = mazo.sacar(11);
         gestorMuertos = new GestorMuertos(fichasMuerto1, fichasMuerto2);
 
-        // Repartir 12 fichas a cada jugador
         jugadores = new ArrayList<>();
         jugadores.add(new Jugador(mazo.sacar(12)));
         jugadores.add(new Jugador(mazo.sacar(12)));
@@ -72,9 +54,7 @@ public class Burako implements IBurako {
 
     @Override
     public void notificarObservadores(Eventos evento) {
-        for (Observador obs : observadores) {
-            obs.notificar(evento);
-        }
+        for (Observador obs : observadores) obs.notificar(evento);
     }
 
     // ── Configuración ─────────────────────────────────────────────────────────
@@ -85,187 +65,210 @@ public class Burako implements IBurako {
         jugadores.get(1).setNombre(nombre2);
     }
 
-    // ── Consultas de estado ───────────────────────────────────────────────────
+    // ── Consultas ─────────────────────────────────────────────────────────────
 
-    @Override
-    public int getTurnoActual() {
-        return gestorTurnos.getTurnoActual();
-    }
-
-    @Override
-    public EstadoTurno getEstadoTurno() {
-        return gestorTurnos.getEstado();
-    }
+    @Override public int         getTurnoActual()        { return gestorTurnos.getTurnoActual(); }
+    @Override public EstadoTurno getEstadoTurno()        { return gestorTurnos.getEstado(); }
+    @Override public String      getNombreJugador(int i) { return jugadores.get(i).getNombre(); }
+    @Override public String      getUltimoMensajeError() { return ultimoMensajeError; }
 
     @Override
     public boolean puedeTomar(int indice) {
-        return gestorTurnos.puedeTomar(indice);
+        return gestorTurnos.getTurnoActual() == indice
+                && gestorTurnos.getEstado() == EstadoTurno.TOMAR;
     }
 
     @Override
     public boolean puedeJugar(int indice) {
-        return gestorTurnos.puedeJugar(indice);
+        return gestorTurnos.getTurnoActual() == indice
+                && gestorTurnos.getEstado() == EstadoTurno.JUGAR;
     }
 
-    @Override
-    public String getNombreJugador(int indice) {
-        return jugadores.get(indice).getNombre();
-    }
-
-    @Override
-    public String getUltimoMensajeError() {
-        return ultimoMensajeError;
-    }
-
-    // ── Consultas de datos ────────────────────────────────────────────────────
-
-    @Override
-    public List<FichaMostrable> getPozo() {
-        return pozo.get();
-    }
-
-    @Override
-    public List<FichaMostrable> getAtril(int indice) {
-        return jugadores.get(indice).getAtril();
-    }
-
-    @Override
-    public List<JuegoMostrable> getJuegos(int indice) {
-        return jugadores.get(indice).getJugadas();
-    }
-
-    @Override
-    public int cantJuegos(int indice) {
-        return jugadores.get(indice).cantJuegos();
-    }
+    @Override public List<FichaMostrable> getPozo()         { return pozo.get(); }
+    @Override public List<FichaMostrable> getAtril(int i)   { return jugadores.get(i).getAtril(); }
+    @Override public List<JuegoMostrable> getJuegos(int i)  { return jugadores.get(i).getJugadas(); }
+    @Override public int                  cantJuegos(int i) { return jugadores.get(i).cantJuegos(); }
 
     @Override
     public List<ResultadoJugador> getResultados() {
-        int turnoActual = gestorTurnos.getTurnoActual();
+        int quien = gestorTurnos.getTurnoActual();
         List<ResultadoJugador> resultados = new ArrayList<>();
         for (int i = 0; i < jugadores.size(); i++) {
-            Jugador j     = jugadores.get(i);
-            boolean corto = (i == turnoActual);
-            int puntaje   = j.calcularPuntaje(corto);
-            // El ganador es quien cortó O quien tiene más puntos al finalizar
-            resultados.add(new ResultadoJugador(j.getNombre(), puntaje, corto));
+            Jugador j   = jugadores.get(i);
+            int puntaje = j.calcularPuntaje(i == quien);
+            resultados.add(new ResultadoJugador(j.getNombre(), puntaje, i == quien));
         }
         return resultados;
     }
 
-    // ── Acciones del turno ────────────────────────────────────────────────────
+    // ── ACCIÓN: Robo del mazo ─────────────────────────────────────────────────
 
     @Override
     public boolean agarrarMazo(int indice) {
-        try {
-            gestorTurnos.validarEsTurno(indice);
-            gestorTurnos.validarEstado(EstadoTurno.TOMAR, "Debes terminar tu jugada antes de tomar del mazo.");
-            Ficha ficha = mazo.sacarFicha();
-            if (ficha == null) {
-                throw new Exception("El mazo está vacío.");
-            }
-            jugadores.get(indice).agregarAtril(ficha);
-            gestorTurnos.marcarFichaTomada();
-            notificarObservadores(Eventos.tomarMazo_exitoso);
-            return true;
-        } catch (Exception e) {
-            registrarError(e);
-            notificarObservadores(Eventos.tomarMazo_NO_exitoso);
-            return false;
-        }
+        ContextoJugada ctx = contextoBase(indice)
+                .mazoVacio(mazo.estaVacio())
+                .build();
+
+        ResultadoValidacion r = ReglasDeJuego.validarRoboMazo(ctx);
+        if (!r.esValido()) return fallar(r.getMensaje(), Eventos.tomarMazo_NO_exitoso);
+
+        jugadores.get(indice).agregarAtril(mazo.sacarFicha());
+        gestorTurnos.marcarFichaTomada();
+        notificarObservadores(Eventos.tomarMazo_exitoso);
+        return true;
     }
+
+    // ── ACCIÓN: Robo del pozo ─────────────────────────────────────────────────
 
     @Override
     public boolean agarrarPozo(int indice) {
-        try {
-            gestorTurnos.validarEsTurno(indice);
-            gestorTurnos.validarEstado(EstadoTurno.TOMAR, "No puedes tomar el pozo en este momento.");
-            if (pozo.estaVacio()) {
-                throw new Exception("El pozo está vacío.");
-            }
-            jugadores.get(indice).agregarAtril(pozo.tomar());
-            gestorTurnos.marcarFichaTomada();
-            notificarObservadores(Eventos.tomarPozo_exitoso);
-            return true;
-        } catch (Exception e) {
-            registrarError(e);
-            notificarObservadores(Eventos.tomarPozo_NO_exitoso);
-            return false;
-        }
+        ContextoJugada ctx = contextoBase(indice)
+                .pozoVacio(pozo.estaVacio())
+                .build();
+
+        ResultadoValidacion r = ReglasDeJuego.validarRoboPozo(ctx);
+        if (!r.esValido()) return fallar(r.getMensaje(), Eventos.tomarPozo_NO_exitoso);
+
+        jugadores.get(indice).agregarAtril(pozo.tomar());
+        gestorTurnos.marcarFichaTomada();
+        notificarObservadores(Eventos.tomarPozo_exitoso);
+        return true;
     }
+
+    // ── ACCIÓN: Bajar juego ───────────────────────────────────────────────────
 
     @Override
     public void bajarJuego(int indice, int[] posicionesAtril) {
+        Jugador jugador = jugadores.get(indice);
+
+        // Extraer fichas para pasarlas al validador
+        List<Ficha> seleccionadas;
         try {
-            gestorTurnos.validarEsTurno(indice);
-            gestorTurnos.validarEstado(EstadoTurno.JUGAR, "Debes tomar una ficha antes de bajar un juego.");
-            Jugador jugador = jugadores.get(indice);
-            jugador.bajarJuego(posicionesAtril);
-            verificarTomaMuerto(jugador);
-            notificarObservadores(Eventos.bajarJuego_exitoso);
+            seleccionadas = fichasEnPosiciones(jugador, posicionesAtril);
         } catch (Exception e) {
-            registrarError(e);
-            notificarObservadores(Eventos.bajarJuego_NO_exitoso);
+            fallar(e.getMessage(), Eventos.bajarJuego_NO_exitoso);
+            return;
         }
+
+        ContextoJugada ctx = contextoBase(indice)
+                .fichasSeleccionadas(seleccionadas)
+                .build();
+
+        ResultadoValidacion r = ReglasDeJuego.validarBajarJuego(ctx);
+        if (!r.esValido()) {
+            fallar(r.getMensaje(), Eventos.bajarJuego_NO_exitoso);
+            return;
+        }
+
+        try {
+            jugador.bajarJuego(posicionesAtril);
+        } catch (Exception e) {
+            fallar(e.getMessage(), Eventos.bajarJuego_NO_exitoso);
+            return;
+        }
+
+        procesarTomaMuertaDirecta(jugador, indice);
+        notificarObservadores(Eventos.bajarJuego_exitoso);
     }
+
+    // ── ACCIÓN: Apoyar juego ──────────────────────────────────────────────────
 
     @Override
     public void apoyarJuego(int posAtril, int posJuego, int indice, int numJuego) {
+        Jugador jugador = jugadores.get(indice);
+
+        Ficha ficha;
         try {
-            gestorTurnos.validarEsTurno(indice);
-            gestorTurnos.validarEstado(EstadoTurno.JUGAR, "Debes tomar una ficha antes de apoyar.");
-            Jugador jugador = jugadores.get(indice);
-            jugador.apoyarJuego(posAtril, posJuego, numJuego);
-            verificarTomaMuerto(jugador);
-            notificarObservadores(Eventos.apoyarJuego_exitoso);
+            ficha = jugador.verAtril(posAtril);
         } catch (Exception e) {
-            registrarError(e);
-            notificarObservadores(Eventos.apoyarJuego_NO_exitoso);
+            fallar(e.getMessage(), Eventos.apoyarJuego_NO_exitoso);
+            return;
         }
+
+        List<Ficha> fichasDelJuego = jugador.getFichasDeJuego(numJuego);
+        TipoJuego   tipoDestino    = jugador.getTipoDeJuego(numJuego);
+
+        ContextoJugada ctx = contextoBase(indice)
+                .tipoJuegoDestino(tipoDestino)
+                .build();
+
+        // posJuego es 1-based; validador usa 0-based para la posición
+        ResultadoValidacion r = ReglasDeJuego.validarApoyarJuego(
+                ctx, ficha, posJuego - 1, fichasDelJuego);
+        if (!r.esValido()) {
+            fallar(r.getMensaje(), Eventos.apoyarJuego_NO_exitoso);
+            return;
+        }
+
+        try {
+            jugador.apoyarJuego(posAtril, posJuego, numJuego);
+        } catch (Exception e) {
+            fallar(e.getMessage(), Eventos.apoyarJuego_NO_exitoso);
+            return;
+        }
+
+        procesarTomaMuertaDirecta(jugador, indice);
+        notificarObservadores(Eventos.apoyarJuego_exitoso);
     }
+
+    // ── ACCIÓN: Descartar al pozo ─────────────────────────────────────────────
 
     @Override
     public void agregarPozo(int posAtril, int indice) {
-        try {
-            gestorTurnos.validarEsTurno(indice);
-            gestorTurnos.validarEstado(EstadoTurno.JUGAR, "Debes tomar una ficha antes de descartar al pozo.");
-            Jugador jugador = jugadores.get(indice);
-            Ficha ficha = jugador.verAtril(posAtril);
-            jugador.sacarAtril(ficha);
-            pozo.agregar(ficha);
+        Jugador jugador = jugadores.get(indice);
 
-            if (jugador.atrilVacio()) {
-                if (!jugador.yaTomoMuerto() && gestorMuertos.hayMuertosDisponibles()) {
-                    // Toma indirecta del muerto: el turno SÍ avanza
-                    gestorMuertos.intentarAsignarMuerto(jugador);
-                    notificarObservadores(Eventos.tomarMuerto_exitoso);
-                    gestorTurnos.avanzarTurno();
-                } else if (jugador.yaTomoMuerto() && jugador.tieneCanasta()) {
-                    // Corte exitoso
-                    gestorTurnos.finalizarPartida();
-                    notificarObservadores(Eventos.cortar_exitoso);
-                    notificarObservadores(Eventos.partida_terminada);
-                } else {
-                    // No puede quedarse sin fichas sin cumplir condiciones de corte
-                    throw new Exception("No puedes descartar tu última ficha sin tener al menos una canasta.");
-                }
-            } else {
-                gestorTurnos.avanzarTurno();
+        // Paso 1: validar que puede descartar (turno + estado JUGAR)
+        ContextoJugada ctxDescarte = contextoBase(indice).build();
+        ResultadoValidacion rd = ReglasDeJuego.validarDescarte(ctxDescarte);
+        if (!rd.esValido()) {
+            fallar(rd.getMensaje(), Eventos.agregarPozo_NO_exitoso);
+            return;
+        }
+
+        // Paso 2: extraer la ficha del atril
+        Ficha ficha;
+        try {
+            ficha = jugador.verAtril(posAtril);
+            jugador.sacarAtril(ficha);
+        } catch (Exception e) {
+            fallar(e.getMessage(), Eventos.agregarPozo_NO_exitoso);
+            return;
+        }
+
+        pozo.agregar(ficha);
+
+        // Paso 3: si el atril quedó vacío, evaluar consecuencias
+        if (jugador.atrilVacio()) {
+            ContextoJugada ctxFinal = contextoConJugador(indice, jugador);
+            ResultadoValidacion rf = ReglasDeJuego.validarDescarteFinal(ctxFinal);
+
+            if (!rf.esValido()) {
+                // Revertir: devolver la ficha al atril
+                jugador.agregarAtril(pozo.tomar());
+                fallar(rf.getMensaje(), Eventos.agregarPozo_NO_exitoso);
+                return;
             }
 
             notificarObservadores(Eventos.agregarPozo_exitoso);
-        } catch (Exception e) {
-            registrarError(e);
-            notificarObservadores(Eventos.agregarPozo_NO_exitoso);
+
+            if (ReglasDeJuego.correspondeTomaMuertoIndirecta(ctxFinal)) {
+                gestorMuertos.asignarMuerto(jugador);
+                notificarObservadores(Eventos.tomarMuerto_exitoso);
+                gestorTurnos.avanzarTurno();
+            } else if (ReglasDeJuego.puedeCortar(ctxFinal)) {
+                gestorTurnos.finalizarPartida();
+                notificarObservadores(Eventos.cortar_exitoso);
+                notificarObservadores(Eventos.partida_terminada);
+            }
+        } else {
+            notificarObservadores(Eventos.agregarPozo_exitoso);
+            gestorTurnos.avanzarTurno();
         }
     }
 
-    // ── Acceso directo a Jugador (para compatibilidad con tests) ──────────────
+    // ── Acceso directo a Jugador (solo para tests) ────────────────────────────
 
-    /**
-     * Retorna el jugador en el índice indicado.
-     * Usado por los tests existentes; el Controlador no debe usar este método.
-     */
+    /** El Controlador NO debe usar este método. Solo para tests existentes. */
     public Jugador getJugador(int indice) {
         return jugadores.get(indice);
     }
@@ -273,20 +276,74 @@ public class Burako implements IBurako {
     // ── Helpers privados ──────────────────────────────────────────────────────
 
     /**
-     * Si el jugador quedó sin fichas tras bajar/apoyar, intenta asignarle el muerto
-     * (toma directa). El turno NO avanza en toma directa.
+     * Construye el contexto base con turno actual y estado del jugador indicado.
+     * Retorna el Builder para que el llamador agregue campos específicos de la acción.
      */
-    private void verificarTomaMuerto(Jugador jugador) {
-        if (jugador.atrilVacio()) {
-            boolean asignado = gestorMuertos.intentarAsignarMuerto(jugador);
-            if (asignado) {
-                notificarObservadores(Eventos.tomarMuerto_exitoso);
-            }
+    private ContextoJugada.Builder contextoBase(int indice) {
+        Jugador j = jugadores.get(indice);
+        return ContextoJugada.builder()
+                .turnoActual(gestorTurnos.getTurnoActual())
+                .estadoTurno(gestorTurnos.getEstado())
+                .indiceJugador(indice)
+                .cantFichasAtril(j.getAtril().size())
+                .yaTomoMuerto(j.yaTomoMuerto())
+                .tieneCanasta(j.tieneCanasta())
+                .cantJuegos(j.cantJuegos())
+                .pozoVacio(pozo.estaVacio())
+                .mazoVacio(mazo.estaVacio())
+                .hayMuertosDisponibles(gestorMuertos.hayMuertosDisponibles());
+    }
+
+    /**
+     * Contexto con el estado ACTUAL del jugador (post-operación).
+     * Usado para evaluar descarte final DESPUÉS de haber removido la ficha del atril.
+     */
+    private ContextoJugada contextoConJugador(int indice, Jugador j) {
+        return ContextoJugada.builder()
+                .turnoActual(gestorTurnos.getTurnoActual())
+                .estadoTurno(gestorTurnos.getEstado())
+                .indiceJugador(indice)
+                .cantFichasAtril(j.getAtril().size())
+                .yaTomoMuerto(j.yaTomoMuerto())
+                .tieneCanasta(j.tieneCanasta())
+                .cantJuegos(j.cantJuegos())
+                .pozoVacio(pozo.estaVacio())
+                .mazoVacio(mazo.estaVacio())
+                .hayMuertosDisponibles(gestorMuertos.hayMuertosDisponibles())
+                .build();
+    }
+
+    /**
+     * Si el atril quedó vacío tras bajar/apoyar y corresponde toma directa de muerto,
+     * la ejecuta. El turno NO avanza en la toma directa.
+     */
+    private void procesarTomaMuertaDirecta(Jugador jugador, int indice) {
+        ContextoJugada ctx = contextoConJugador(indice, jugador);
+        if (ReglasDeJuego.correspondeTomaMuertaDirecta(ctx)) {
+            gestorMuertos.asignarMuerto(jugador);
+            notificarObservadores(Eventos.tomarMuerto_exitoso);
         }
     }
 
-    /** Guarda el mensaje de la excepción para que el Controlador lo consulte. */
-    private void registrarError(Exception e) {
-        ultimoMensajeError = e.getMessage() != null ? e.getMessage() : "Error desconocido.";
+    /**
+     * Extrae las fichas del atril del jugador en las posiciones 1-based dadas,
+     * sin removerlas. Para construir el ContextoJugada antes de validar.
+     */
+    private List<Ficha> fichasEnPosiciones(Jugador jugador, int[] posiciones) throws Exception {
+        List<FichaMostrable> atril = jugador.getAtril();
+        List<Ficha> resultado = new ArrayList<>();
+        for (int pos : posiciones) {
+            if (pos < 1 || pos > atril.size()) {
+                throw new Exception("Posición " + pos + " fuera del atril (tamaño: " + atril.size() + ").");
+            }
+            resultado.add((Ficha) atril.get(pos - 1));
+        }
+        return resultado;
+    }
+
+    private boolean fallar(String mensaje, Eventos evento) {
+        ultimoMensajeError = mensaje != null ? mensaje : "Error desconocido.";
+        notificarObservadores(evento);
+        return false;
     }
 }

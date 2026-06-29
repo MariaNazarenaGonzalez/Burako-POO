@@ -5,30 +5,33 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * Representa un juego (combinación de fichas) en la mesa de un jugador.
+ * Contenedor de fichas que forman un juego en la mesa.
  *
- * MODIFICADO respecto al original:
- * - Toda la lógica de validación (esEscalera, esPierna, pureza) fue extraída
- *   a ValidadorJuego, que tiene esa única responsabilidad.
- * - Juego ahora solo gestiona: contener fichas, delegar validación,
- *   mantener el tipo y calcular su puntaje propio.
- * - JuegoMostrable ahora expone getFichas() (renombrado desde getJuego())
- *   y getTipo(), eliminando la ambigüedad entre el objeto y su contenido.
- * - Implementa JuegoMostrable usando List<FichaMostrable> para no exponer
- *   la lista interna de Ficha.
+ * Responsabilidad única: almacenar las fichas de un juego, mantener su tipo
+ * actualizado y calcular su puntaje individual.
+ *
+ * NO valida reglas de negocio (eso es ReglasDeJuego).
+ * NO clasifica por sí mismo (delega a ValidadorFormacion).
+ * NO decide si el jugador puede bajar o apoyar (eso es ReglasDeJuego).
+ *
+ * calcularPuntaje() aplica los bonos de Burako limpio (+200) y sucio (+100)
+ * ya que son propiedades del juego en sí, no del jugador.
  */
 public class Juego implements JuegoMostrable {
 
     private final List<Ficha> fichas;
-    private TipoJuego tipo;
+    private TipoJuego         tipo;
 
     /**
-     * Crea un juego a partir de una lista de fichas.
-     * @throws Exception si las fichas no forman una combinación válida.
+     * Crea un juego a partir de las fichas dadas.
+     * ValidadorFormacion ya fue consultado por ReglasDeJuego antes de esta llamada;
+     * aquí se vuelve a clasificar para inicializar el tipo interno.
+     *
+     * @throws Exception si la combinación no es válida (defensa ante uso incorrecto).
      */
     public Juego(List<Ficha> fichas) throws Exception {
         this.fichas = new ArrayList<>(fichas);
-        this.tipo   = ValidadorJuego.clasificar(this.fichas);
+        this.tipo   = ValidadorFormacion.clasificar(this.fichas);
     }
 
     // ── JuegoMostrable ─────────────────────────────────────────────────────────
@@ -43,63 +46,71 @@ public class Juego implements JuegoMostrable {
         return tipo;
     }
 
-    // ── Operaciones internas (usadas por Jugador) ──────────────────────────────
+    // ── Operaciones internas (invocadas solo por Jugador) ──────────────────────
 
     /**
-     * Agrega una ficha en la posición {@code pos} (1-based) del juego.
-     * Si la ficha real reemplaza a un comodín, el comodín se desplaza al final.
-     *
-     * @throws Exception si la posición o la ficha no son válidas para este juego.
+     * Agrega una ficha en la posición {@code pos} (1-based).
+     * Precondición: ReglasDeJuego.validarApoyarJuego() aprobó la operación.
+     * Si una ficha real reemplaza a un comodín en una escalera, el comodín
+     * se desplaza al final del juego.
      */
     void agregar(Ficha ficha, int pos) throws Exception {
         if (pos < 1 || pos > fichas.size() + 1) {
-            throw new Exception("Posición " + pos + " inválida para el juego (tamaño: " + fichas.size() + ").");
+            throw new Exception("Posición " + pos + " fuera de rango (el juego tiene "
+                    + fichas.size() + " fichas).");
         }
 
-        int posIdx = pos - 1; // convertir a 0-based
+        int idx = pos - 1;
 
-        if (!ValidadorJuego.esAgregadoValido(fichas, tipo, ficha, posIdx)) {
-            throw new Exception("La ficha " + ficha + " no es válida en la posición " + pos + " del juego.");
-        }
+        boolean esEscaleraDestino =
+                tipo == TipoJuego.Escalera
+                || tipo == TipoJuego.CanastaImpuraEscalera
+                || tipo == TipoJuego.CanastaPuraEscalera;
 
-        // Si se inserta una ficha real donde hay un comodín, el comodín se va al final
-        boolean desplazaComodin = posIdx < fichas.size()
-                && fichas.get(posIdx).esComodin()
-                && !ficha.esComodin()
-                && (tipo == TipoJuego.Escalera || tipo == TipoJuego.CanastaImpuraEscalera
-                || tipo == TipoJuego.CanastaPuraEscalera);
+        boolean desplazaComodin = esEscaleraDestino
+                && idx < fichas.size()
+                && fichas.get(idx).esComodin()
+                && !ficha.esComodin();
 
         if (desplazaComodin) {
-            Ficha comodinDesplazado = fichas.remove(posIdx);
-            fichas.add(posIdx, ficha);
-            fichas.add(comodinDesplazado); // al final
+            Ficha comodinDesplazado = fichas.remove(idx);
+            fichas.add(idx, ficha);
+            fichas.add(comodinDesplazado);
         } else {
-            fichas.add(posIdx, ficha);
+            fichas.add(idx, ficha);
         }
 
-        // Reclasificar si alcanzamos 7 fichas
         if (fichas.size() >= 7) {
-            tipo = ValidadorJuego.reclasificarComoCanasta(fichas);
+            tipo = ValidadorFormacion.reclasificarComoCanasta(fichas);
         }
     }
 
-    /** Retorna la cantidad de fichas en este juego. */
+    /** Copia interna de las fichas (para que CalculadorPuntaje/ReglasDeJuego operen sin cast). */
+    List<Ficha> getFichasInternas() {
+        return Collections.unmodifiableList(fichas);
+    }
+
+    /** Cantidad de fichas actuales en el juego. */
     int cantFichas() {
         return fichas.size();
     }
 
     /**
-     * Calcula el puntaje de este juego según las reglas de Burako.
-     * Las canastas suman un bono adicional.
+     * Puntaje de este juego, incluyendo bono de Burako.
+     *
+     * Burako limpio (canasta pura, 7+ fichas sin comodín negro ni N2 fuera
+     * de lugar): +200 puntos extra.
+     * Burako sucio (canasta impura, 7+ fichas con comodín): +100 puntos extra.
+     * Juegos sin canasta: solo valor de fichas.
      */
     int calcularPuntaje() {
-        int puntos = fichas.stream().mapToInt(Ficha::getValor).sum();
-        if (tipo.esPura()) {
-            puntos += 200;
-        } else if (tipo.esCanasta()) {
-            puntos += 100;
+        int valorFichas = fichas.stream().mapToInt(Ficha::getValor).sum();
+
+        if (ReglasDeJuego.esBurakoLimpio(fichas)) {
+            return valorFichas + 200;
+        } else if (ReglasDeJuego.esBurakoSucio(fichas)) {
+            return valorFichas + 100;
         }
-        return puntos;
+        return valorFichas;
     }
 }
-

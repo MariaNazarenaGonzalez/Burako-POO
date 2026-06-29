@@ -5,19 +5,14 @@ import java.util.Deque;
 import java.util.List;
 
 /**
- * Gestiona los muertos disponibles en la partida.
+ * Gestiona el stock de muertos disponibles en la partida.
  *
- * NUEVA - Extraída de Burako para eliminar la lógica duplicada que aparecía
- * tres veces (en agregarPozo(), bajarJuego() y apoyarJuego()):
+ * Responsabilidad única: administrar la cola de muertos y entregarlos cuando
+ * Burako lo ordena. NO decide si corresponde entregar un muerto: esa decisión
+ * la toman ReglasDeJuego.correspondeTomaMuertoDirecta/Indirecta().
  *
- *   if (!jugador.yaTomoMuerto() && !muertos.isEmpty()) {
- *       ArrayList<Ficha> fichasMuerto = muertos.remove(0).tomar();
- *       jugador.agregarAtril(fichasMuerto);
- *       jugador.setYaTomoMuerto(true);
- *   }
- *
- * Ahora esa responsabilidad vive aquí, con una única firma clara.
- * Burako delega a GestorMuertos sin duplicar código.
+ * Burako pregunta a ReglasDeJuego si corresponde, y si corresponde,
+ * llama asignarMuerto(jugador) aquí.
  */
 class GestorMuertos {
 
@@ -30,23 +25,17 @@ class GestorMuertos {
     }
 
     /**
-     * Intenta asignar el primer muerto disponible al jugador.
-     * Si el jugador ya tomó su muerto o no quedan muertos, no hace nada.
-     *
-     * @param jugador el jugador que podría recibir el muerto
-     * @return true si se le asignó un muerto al jugador en esta llamada
+     * Entrega el siguiente muerto disponible al jugador.
+     * Precondición: hayMuertosDisponibles() == true.
+     * La precondición es verificada por ReglasDeJuego antes de esta llamada.
      */
-    boolean intentarAsignarMuerto(Jugador jugador) {
-        if (jugador.yaTomoMuerto() || muertos.isEmpty()) {
-            return false;
-        }
+    void asignarMuerto(Jugador jugador) {
         Muerto siguiente = muertos.poll();
         jugador.agregarAtril(siguiente.tomar());
         jugador.marcarMuertoTomado();
-        return true;
     }
 
-    /** Retorna true si quedan muertos sin tomar. */
+    /** Retorna true si hay al menos un muerto sin tomar. */
     boolean hayMuertosDisponibles() {
         return !muertos.isEmpty();
     }

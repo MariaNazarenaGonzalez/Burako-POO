@@ -2,6 +2,7 @@ package ar.edu.unlu.poo.burako.modelo;
 
 /**
  * Clasificación de un juego (combinación de fichas) en Burako.
+ * Renombrado de Juego_tipo a TipoJuego siguiendo convenciones Java (PascalCase).
  */
 public enum TipoJuego {
     Escalera,

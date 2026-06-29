@@ -5,28 +5,28 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * Representa a un jugador en una partida de Burako.
+ * Representa el estado de un jugador durante la partida.
  *
- * MODIFICADO respecto al original:
- * - Eliminada la referencia circular {@code private final Burako burako}.
- *   Era un campo que nunca se usaba y que habría causado StackOverflowError
- *   al serializar el grafo de objetos.
- * - calcularPuntaje() delegado a CalculadorPuntaje (SRP: Jugador no calcula puntos).
- * - El cast inseguro {@code (Ficha) f} del original fue eliminado: CalculadorPuntaje
- *   trabaja directamente con la lista interna de Ficha.
- * - marcarMuertoTomado() reemplaza a setYaTomoMuerto(true): expresa intención.
- * - Los métodos de acceso interno (bajarJuego, apoyarJuego, sacarAtril,
- *   agregarAtril) son package-private para que solo Burako y GestorMuertos
- *   los invoquen; la Vista nunca llega a Jugador directamente.
- * - getAtrilInterno() es package-private para que CalculadorPuntaje pueda
- *   trabajar con Ficha sin necesidad de cast.
+ * Responsabilidad única: mantener el estado del jugador (atril, juegos bajados,
+ * muerto tomado) y ejecutar operaciones estructurales sobre ese estado.
+ *
+ * NO contiene validaciones de reglas. Todas las validaciones son realizadas
+ * por ReglasDeJuego antes de que Burako invoque los métodos de esta clase.
+ * Si se invoca un método con datos inválidos, se lanza Exception como
+ * protección ante uso incorrecto del API interno.
+ *
+ * Cambios respecto a la versión anterior:
+ * - Eliminada referencia circular a Burako.
+ * - calcularPuntaje() delega completamente a ReglasDeJuego.calcularPuntaje().
+ * - bajarJuego() y apoyarJuego() no validan reglas, solo ejecutan.
+ * - Acceso de paquete para métodos invocados por Burako y GestorMuertos.
  */
 public class Jugador {
 
-    private final Atril atril;
+    private final Atril       atril;
     private final List<Juego> juegos;
-    private boolean yaTomoMuerto;
-    private String nombre;
+    private boolean           yaTomoMuerto;
+    private String            nombre;
 
     Jugador(List<Ficha> fichasIniciales) {
         this.atril        = new Atril(fichasIniciales);
@@ -37,70 +37,47 @@ public class Jugador {
 
     // ── Nombre ────────────────────────────────────────────────────────────────
 
-    public String getNombre() {
-        return nombre;
-    }
-
-    public void setNombre(String nombre) {
-        this.nombre = nombre;
-    }
+    public String getNombre()           { return nombre; }
+    public void   setNombre(String n)   { this.nombre = n; }
 
     // ── Estado del muerto ─────────────────────────────────────────────────────
 
-    public boolean yaTomoMuerto() {
-        return yaTomoMuerto;
-    }
+    public boolean yaTomoMuerto()       { return yaTomoMuerto; }
 
-    /** Usado exclusivamente por GestorMuertos al asignar el muerto. */
-    void marcarMuertoTomado() {
-        this.yaTomoMuerto = true;
-    }
+    /** Invocado por GestorMuertos al entregar el muerto. */
+    void marcarMuertoTomado()           { this.yaTomoMuerto = true; }
 
-    /**
-     * Acceso de compatibilidad para los tests existentes.
-     * @deprecated Preferir marcarMuertoTomado() para toma real;
-     *             setYaTomoMuerto(true/false) solo para setup de tests.
-     */
-    public void setYaTomoMuerto(boolean valor) {
-        this.yaTomoMuerto = valor;
-    }
+    /** Compatibilidad con tests existentes. */
+    public void setYaTomoMuerto(boolean v) { this.yaTomoMuerto = v; }
 
-    // ── Operaciones del atril ─────────────────────────────────────────────────
+    // ── Atril ─────────────────────────────────────────────────────────────────
 
-    /** Agrega fichas al atril (usada por GestorMuertos y Burako). */
-    void agregarAtril(List<Ficha> nuevas) {
-        atril.agregar(nuevas);
-    }
-
-    /** Agrega una sola ficha al atril (usada por Burako al tomar del mazo). */
-    void agregarAtril(Ficha ficha) {
-        atril.agregar(ficha);
-    }
+    void agregarAtril(List<Ficha> nuevas) { atril.agregar(nuevas); }
+    void agregarAtril(Ficha ficha)        { atril.agregar(ficha); }
 
     /**
-     * Retorna la ficha en la posición {@code posicion} (1-based) sin removerla.
+     * Retorna la ficha en la posición 1-based sin removerla.
      * @throws Exception si la posición no existe.
      */
-    Ficha verAtril(int posicion) throws Exception {
-        return atril.ver(new int[]{posicion}).get(0);
+    Ficha verAtril(int pos) throws Exception {
+        return atril.ver(new int[]{pos}).get(0);
     }
 
     /**
-     * Remueve una ficha del atril.
-     * @throws Exception si la ficha no existe en el atril.
+     * Remueve la ficha dada del atril.
+     * @throws Exception si la ficha no está en el atril.
      */
     void sacarAtril(Ficha ficha) throws Exception {
         atril.sacar(List.of(ficha));
     }
 
-    /** Vista pública del atril (para el Controlador). */
+    /** Vista de solo lectura del atril (para IBurako → Controlador). */
     public List<FichaMostrable> getAtril() {
         return atril.get();
     }
 
-    /** Acceso interno a las fichas reales del atril (para CalculadorPuntaje). */
+    /** Acceso tipado sin cast, para ReglasDeJuego.calcularPuntaje(). */
     List<Ficha> getAtrilInterno() {
-        // Construcción segura: copia defensiva tipada
         List<Ficha> copia = new ArrayList<>();
         for (FichaMostrable fm : atril.get()) {
             copia.add((Ficha) fm); // seguro: Atril solo almacena Ficha
@@ -108,57 +85,44 @@ public class Jugador {
         return copia;
     }
 
-    /** Retorna true si el atril está vacío. */
-    boolean atrilVacio() {
-        return atril.estaVacio();
-    }
+    boolean atrilVacio() { return atril.estaVacio(); }
 
-    // ── Operaciones de juego ──────────────────────────────────────────────────
+    // ── Juegos ────────────────────────────────────────────────────────────────
 
     /**
-     * Baja un nuevo juego usando las fichas en las posiciones indicadas (1-based) del atril.
-     * @throws Exception si hay menos de 3 fichas, posiciones inválidas o combinación no válida.
+     * Baja un nuevo juego con las fichas en las posiciones 1-based indicadas.
+     * Precondición: ReglasDeJuego.validarBajarJuego() aprobó la operación.
+     * @throws Exception si hay error estructural (posición inválida, combinación inválida).
      */
     void bajarJuego(int[] posicionesAtril) throws Exception {
-        if (posicionesAtril.length < 3) {
-            throw new Exception("Un juego necesita al menos 3 fichas.");
-        }
         List<Ficha> seleccionadas = atril.ver(posicionesAtril);
-        Juego nuevoJuego = new Juego(seleccionadas); // lanza Exception si inválido
+        Juego nuevo = new Juego(seleccionadas);
         atril.sacar(seleccionadas);
-        juegos.add(nuevoJuego);
+        juegos.add(nuevo);
     }
 
     /**
-     * Apoya la ficha en la posición {@code posAtril} (1-based) del atril
-     * sobre el juego número {@code numJuego} (1-based) en la posición
-     * {@code posJuego} (1-based) de ese juego.
-     * @throws Exception si algún índice es inválido o la ficha no encaja.
+     * Apoya la ficha en posAtril (1-based) sobre el juego numJuego (1-based)
+     * en la posición posEnJuego (1-based) de ese juego.
+     * Precondición: ReglasDeJuego.validarApoyarJuego() aprobó la operación.
+     * @throws Exception si algún índice es inválido estructuralmente.
      */
-    void apoyarJuego(int posAtril, int posJuego, int numJuego) throws Exception {
+    void apoyarJuego(int posAtril, int posEnJuego, int numJuego) throws Exception {
         if (numJuego < 1 || numJuego > juegos.size()) {
-            throw new Exception("El juego número " + numJuego + " no existe.");
+            throw new Exception("El juego " + numJuego + " no existe (total: " + juegos.size() + ").");
         }
         Ficha ficha = verAtril(posAtril);
-        juegos.get(numJuego - 1).agregar(ficha, posJuego);
+        juegos.get(numJuego - 1).agregar(ficha, posEnJuego);
         sacarAtril(ficha);
     }
 
-    // ── Consultas de juegos ───────────────────────────────────────────────────
-
-    /** Vista pública de los juegos bajados (para el Controlador). */
+    /** Vista de solo lectura de los juegos bajados (para IBurako → Controlador). */
     public List<JuegoMostrable> getJugadas() {
         return Collections.unmodifiableList(juegos);
     }
 
-    /** Retorna la cantidad de juegos bajados. */
-    public int cantJuegos() {
-        return juegos.size();
-    }
+    public int cantJuegos() { return juegos.size(); }
 
-    /**
-     * Retorna true si el jugador tiene al menos una canasta (juego de 7+ fichas).
-     */
     public boolean tieneCanasta() {
         return juegos.stream().anyMatch(j -> j.getTipo().esCanasta());
     }
@@ -166,18 +130,38 @@ public class Jugador {
     // ── Puntaje ───────────────────────────────────────────────────────────────
 
     /**
-     * Calcula el puntaje final del jugador.
-     * Delegado a CalculadorPuntaje para mantener SRP.
+     * Calcula el puntaje final delegando a ReglasDeJuego, que es la única
+     * fuente de verdad para las reglas de puntaje.
      *
-     * @param corto true si este jugador fue quien cortó la partida.
+     * @param corto true si este jugador fue quien cerró la partida.
      */
     public int calcularPuntaje(boolean corto) {
-        return CalculadorPuntaje.calcular(
+        return ReglasDeJuego.calcularPuntaje(
                 juegos,
                 getAtrilInterno(),
                 tieneCanasta(),
                 corto,
                 yaTomoMuerto
         );
+    }
+
+    // ── Acceso interno a juegos (para ReglasDeJuego.validarApoyarJuego) ───────
+
+    /**
+     * Retorna las fichas internas del juego en la posición numJuego (1-based).
+     * Usado por Burako para construir el ContextoJugada al apoyar.
+     */
+    List<Ficha> getFichasDeJuego(int numJuego) {
+        if (numJuego < 1 || numJuego > juegos.size()) return List.of();
+        return juegos.get(numJuego - 1).getFichasInternas();
+    }
+
+    /**
+     * Retorna el TipoJuego del juego en la posición numJuego (1-based).
+     * Usado por Burako para construir el ContextoJugada al apoyar.
+     */
+    TipoJuego getTipoDeJuego(int numJuego) {
+        if (numJuego < 1 || numJuego > juegos.size()) return null;
+        return juegos.get(numJuego - 1).getTipo();
     }
 }
