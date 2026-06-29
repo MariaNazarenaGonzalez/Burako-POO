@@ -1,89 +1,63 @@
 package ar.edu.unlu.poo.burako.modelo;
 
+/**
+ * Representa una ficha individual de Burako.
+ *
+ * MODIFICADO respecto al original:
+ * - Eliminados los métodos estáticos fichaNumSig() y fichaColorSig(): la lógica
+ *   de "siguiente número" ahora vive en FichaNumero.siguiente(), cohesionando
+ *   el comportamiento con su tipo. La lógica de "siguiente color" era solo
+ *   usada por Mazo para construirse; se movió allí como método privado.
+ * - Actualizado para usar FichaColor y FichaNumero (nombres corregidos).
+ * - Ningún import de AWT, Swing ni consola.
+ */
+public class Ficha implements FichaMostrable {
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
+    private final FichaColor color;
+    private final FichaNumero numero;
 
-import static ar.edu.unlu.poo.burako.modelo.Ficha_Color.Rojo;
-import static ar.edu.unlu.poo.burako.modelo.Ficha_Color.values;
-
-public class Ficha implements FichaMostrable{
-    private Ficha_Num num;
-    private Ficha_Color color;
-
-    public Ficha(Ficha_Color color, Ficha_Num num) {
-        this.color=color;
-        this.num=num;
+    public Ficha(FichaColor color, FichaNumero numero) {
+        this.color = color;
+        this.numero = numero;
     }
 
     @Override
-    public Ficha_Color getColor() {
-        return this.color;
+    public FichaColor getColor() {
+        return color;
     }
 
     @Override
-    public Ficha_Num getNum() {
-        return this.num;
+    public FichaNumero getNum() {
+        return numero;
     }
 
+    /**
+     * Retorna el valor en puntos de esta ficha según las reglas de Burako.
+     */
     public int getValor() {
-        switch (this.num) {
-            case _1_:
-                return 15;
-            case _2_:
-                return 20;
-            case Comodin:
-                return 50;
-            case _3_:
-            case _4_:
-            case _5_:
-            case _6_:
-            case _7_:
-                return 5;
-            case _8_:
-            case _9_:
-            case _10_:
-            case _11_:
-            case _12_:
-            case _13_:
-                return 10;
-            default:
-                return 0;
+        switch (numero) {
+            case N1:      return 15;
+            case N2:      return 20;
+            case Comodin: return 50;
+            case N3:
+            case N4:
+            case N5:
+            case N6:
+            case N7:      return 5;
+            default:      return 10; // N8 a N13
         }
     }
 
-    public static Ficha_Num fichaNumSig(Ficha_Num num,boolean comodin) {
-        ArrayList<Ficha_Num> lista = new ArrayList<>(Arrays.asList(Ficha_Num.values()));
-        int i=0;
-        for(Ficha_Num n: lista){
-            i++;
-            if(num==n){break;}
-        }
-        if(comodin){
-            if(i< lista.size()) {
-                num = lista.get(i);
-                return num;
-            }else return Ficha_Num._1_;
-        }else {
-            if(i< (lista.size()-1)) {
-                num = lista.get(i);
-                return num;
-            }else return Ficha_Num._1_;
-        }
-
+    /**
+     * Indica si esta ficha actúa como comodín (comodín negro o el 2 en ciertos contextos).
+     * El 2 puede actuar como comodín en escaleras e influye en la pureza de las canastas.
+     */
+    public boolean esComodin() {
+        return numero == FichaNumero.Comodin || numero == FichaNumero.N2;
     }
 
-    public static Ficha_Color fichaColorSig(Ficha_Color col) {
-        ArrayList<Ficha_Color> lista = new ArrayList<>(Arrays.asList(values()));
-        int i=0;
-        for(Ficha_Color c: lista){
-            i++;
-            if(col==c){break;}
-        }
-        if(i< lista.size()) {
-            col = lista.get(i);
-            return col;
-        }else return Rojo;
+    @Override
+    public String toString() {
+        return "[" + color.name() + "_" + numero.name() + "]";
     }
 }

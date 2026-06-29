@@ -1,30 +1,53 @@
 package ar.edu.unlu.poo.burako.modelo;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
+/**
+ * Representa el pozo de descarte de Burako.
+ * Las fichas descartadas por los jugadores se acumulan aquí.
+ * Tomar el pozo retira TODAS las fichas que contiene.
+ *
+ * MODIFICADO respecto al original:
+ * - Cambiado ArrayList a List en firmas públicas.
+ * - get() retorna vista no modificable (unmodifiableList).
+ * - estaVacio() agregado para evitar consultar get().isEmpty() en el modelo.
+ */
 public class Pozo {
-    private ArrayList<Ficha> pozo;
 
-    public Pozo(){
-        this.pozo=new ArrayList<>();
+    private List<Ficha> fichas;
+
+    public Pozo() {
+        fichas = new ArrayList<>();
     }
 
-    public ArrayList<Ficha> tomar() {
-        ArrayList<Ficha> f=this.pozo;
-        this.pozo=new ArrayList<>();
-        return f;
+    /**
+     * Agrega una ficha al pozo.
+     */
+    public void agregar(Ficha ficha) {
+        fichas.add(ficha);
     }
 
-    public void agregar(Ficha ficha) throws Exception {
-        boolean b=this.pozo.add(ficha);
-        if(!b){throw new Exception("ERROR Pozo.agregar(Ficha ficha);");}
+    /**
+     * Retira todas las fichas del pozo y las retorna.
+     * Después de esta operación el pozo queda vacío.
+     */
+    public List<Ficha> tomar() {
+        List<Ficha> tomadas = fichas;
+        fichas = new ArrayList<>();
+        return tomadas;
     }
 
-    public ArrayList<FichaMostrable> get() {
-        ArrayList<FichaMostrable> pozo=new ArrayList<>();
-        for(Ficha f: this.pozo){
-            pozo.add((FichaMostrable) f);
-        }
-        return pozo;
+    /**
+     * Retorna una vista de solo lectura del pozo como FichaMostrable.
+     */
+    public List<FichaMostrable> get() {
+        return Collections.unmodifiableList(fichas);
+    }
+
+    /** Retorna true si el pozo no tiene fichas. */
+    public boolean estaVacio() {
+        return fichas.isEmpty();
     }
 }

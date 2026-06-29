@@ -1,253 +1,292 @@
 package ar.edu.unlu.poo.burako.modelo;
 
-
 import java.util.ArrayList;
+import java.util.List;
 
-public class Burako implements Observado{
-    private Pozo pozo;
-    private Mazo mazo;
-    private ArrayList<Jugador> jugadores;
-    private ArrayList<Muerto> muertos;
-    private ArrayList<Observador> observadores = new ArrayList<>();
-    private int turnoActual;
-    private EstadoTurno estadoTurno;
+/**
+ * Implementación principal del modelo de Burako.
+ * Orquesta los colaboradores del dominio e implementa IBurako.
+ *
+ * MODIFICADO respecto al original:
+ *
+ * 1. Implementa IBurako (nueva interfaz) en lugar de solo Observado.
+ *    El Controlador ahora depende de IBurako, no de Burako directamente (DIP).
+ *
+ * 2. La lógica de turno fue extraída a GestorTurnos:
+ *    - validarTurno(), validarEstado(), avanzarTurno(), puedeTomar(), puedeJugar()
+ *    ya no existen en esta clase.
+ *
+ * 3. La lógica de muertos fue extraída a GestorMuertos:
+ *    - El bloque if (!jugador.yaTomoMuerto() && !muertos.isEmpty()) { ... }
+ *    que se duplicaba en agregarPozo(), bajarJuego() y apoyarJuego() fue
+ *    reemplazado por gestorMuertos.intentarAsignarMuerto(jugador).
+ *
+ * 4. getPuntajesFinales() fue reemplazado por getResultados() que retorna
+ *    List<ResultadoJugador> en lugar de un String formateado.
+ *    La Vista decide cómo mostrar los resultados (SRP / MVC).
+ *
+ * 5. getUltimoMensajeError() reemplaza el transporte de Exception como
+ *    parámetro del Observer. Cuando una acción falla, Burako guarda el mensaje
+ *    y notifica el evento _NO_exitoso. El Controlador consulta el mensaje y
+ *    lo pasa a la Vista sin exponer tipos de excepción del modelo.
+ *
+ * 6. getJugador() sigue siendo public para compatibilidad con los tests
+ *    existentes que acceden directamente a Jugador.
+ */
+public class Burako implements IBurako {
 
+    // ── Colaboradores del dominio ──────────────────────────────────────────────
+    private final List<Jugador>    jugadores;
+    private final Mazo             mazo;
+    private final Pozo             pozo;
+    private final GestorTurnos     gestorTurnos;
+    private final GestorMuertos    gestorMuertos;
 
-    public Burako(){
-        this.mazo= new Mazo();
-        this.pozo= new Pozo();
-        this.jugadores = new ArrayList<>();
-        this.muertos = new ArrayList<>();
-        this.muertos.add(new Muerto(mazo.sacar(11)));
-        this.muertos.add(new Muerto(mazo.sacar(11)));
-        this.jugadores.add(new Jugador( mazo.sacar(12),this));
-        this.jugadores.add(new Jugador( mazo.sacar(12),this));
-        this.turnoActual = 0;
-        this.estadoTurno = EstadoTurno.TOMAR;
+    // ── Estado del Observer ────────────────────────────────────────────────────
+    private final List<Observador> observadores = new ArrayList<>();
+    private String                 ultimoMensajeError = "";
+
+    public Burako() {
+        mazo = new Mazo();
+        pozo = new Pozo();
+
+        // Preparar muertos (11 fichas cada uno) antes de repartir
+        List<Ficha> fichasMuerto1 = mazo.sacar(11);
+        List<Ficha> fichasMuerto2 = mazo.sacar(11);
+        gestorMuertos = new GestorMuertos(fichasMuerto1, fichasMuerto2);
+
+        // Repartir 12 fichas a cada jugador
+        jugadores = new ArrayList<>();
+        jugadores.add(new Jugador(mazo.sacar(12)));
+        jugadores.add(new Jugador(mazo.sacar(12)));
+
+        gestorTurnos = new GestorTurnos(jugadores.size());
     }
 
+    // ── Observado ─────────────────────────────────────────────────────────────
 
+    @Override
+    public void agregarObservador(Observador observador) {
+        observadores.add(observador);
+    }
 
+    @Override
+    public void notificarObservadores(Eventos evento) {
+        for (Observador obs : observadores) {
+            obs.notificar(evento);
+        }
+    }
 
-    public void agregarPozo(int ficha,int turno) {
+    // ── Configuración ─────────────────────────────────────────────────────────
+
+    @Override
+    public void setNombres(String nombre1, String nombre2) {
+        jugadores.get(0).setNombre(nombre1);
+        jugadores.get(1).setNombre(nombre2);
+    }
+
+    // ── Consultas de estado ───────────────────────────────────────────────────
+
+    @Override
+    public int getTurnoActual() {
+        return gestorTurnos.getTurnoActual();
+    }
+
+    @Override
+    public EstadoTurno getEstadoTurno() {
+        return gestorTurnos.getEstado();
+    }
+
+    @Override
+    public boolean puedeTomar(int indice) {
+        return gestorTurnos.puedeTomar(indice);
+    }
+
+    @Override
+    public boolean puedeJugar(int indice) {
+        return gestorTurnos.puedeJugar(indice);
+    }
+
+    @Override
+    public String getNombreJugador(int indice) {
+        return jugadores.get(indice).getNombre();
+    }
+
+    @Override
+    public String getUltimoMensajeError() {
+        return ultimoMensajeError;
+    }
+
+    // ── Consultas de datos ────────────────────────────────────────────────────
+
+    @Override
+    public List<FichaMostrable> getPozo() {
+        return pozo.get();
+    }
+
+    @Override
+    public List<FichaMostrable> getAtril(int indice) {
+        return jugadores.get(indice).getAtril();
+    }
+
+    @Override
+    public List<JuegoMostrable> getJuegos(int indice) {
+        return jugadores.get(indice).getJugadas();
+    }
+
+    @Override
+    public int cantJuegos(int indice) {
+        return jugadores.get(indice).cantJuegos();
+    }
+
+    @Override
+    public List<ResultadoJugador> getResultados() {
+        int turnoActual = gestorTurnos.getTurnoActual();
+        List<ResultadoJugador> resultados = new ArrayList<>();
+        for (int i = 0; i < jugadores.size(); i++) {
+            Jugador j     = jugadores.get(i);
+            boolean corto = (i == turnoActual);
+            int puntaje   = j.calcularPuntaje(corto);
+            // El ganador es quien cortó O quien tiene más puntos al finalizar
+            resultados.add(new ResultadoJugador(j.getNombre(), puntaje, corto));
+        }
+        return resultados;
+    }
+
+    // ── Acciones del turno ────────────────────────────────────────────────────
+
+    @Override
+    public boolean agarrarMazo(int indice) {
         try {
-            validarTurno(turno);
-            validarEstado(EstadoTurno.JUGAR, "Debes tomar una ficha antes de terminar el turno");
-            Jugador jugador = getJugador(turno);
-            Ficha fichaElegida = jugador.verAtril(ficha);
-            jugador.sacarAtril(fichaElegida);
-            this.pozo.agregar(fichaElegida);
-            
-            // Check for Indirect Muerto or Cut
-            if (jugador.getAtril().isEmpty()) {
-                if (!jugador.yaTomoMuerto() && !muertos.isEmpty()) {
-                    // Indirect taking of Muerto
-                    ArrayList<Ficha> fichasMuerto = muertos.remove(0).tomar();
-                    jugador.agregarAtril(fichasMuerto);
-                    jugador.setYaTomoMuerto(true);
-                    notificarObservador(Eventos.tomarMuerto_exitoso);
-                    avanzarTurno();
+            gestorTurnos.validarEsTurno(indice);
+            gestorTurnos.validarEstado(EstadoTurno.TOMAR, "Debes terminar tu jugada antes de tomar del mazo.");
+            Ficha ficha = mazo.sacarFicha();
+            if (ficha == null) {
+                throw new Exception("El mazo está vacío.");
+            }
+            jugadores.get(indice).agregarAtril(ficha);
+            gestorTurnos.marcarFichaTomada();
+            notificarObservadores(Eventos.tomarMazo_exitoso);
+            return true;
+        } catch (Exception e) {
+            registrarError(e);
+            notificarObservadores(Eventos.tomarMazo_NO_exitoso);
+            return false;
+        }
+    }
+
+    @Override
+    public boolean agarrarPozo(int indice) {
+        try {
+            gestorTurnos.validarEsTurno(indice);
+            gestorTurnos.validarEstado(EstadoTurno.TOMAR, "No puedes tomar el pozo en este momento.");
+            if (pozo.estaVacio()) {
+                throw new Exception("El pozo está vacío.");
+            }
+            jugadores.get(indice).agregarAtril(pozo.tomar());
+            gestorTurnos.marcarFichaTomada();
+            notificarObservadores(Eventos.tomarPozo_exitoso);
+            return true;
+        } catch (Exception e) {
+            registrarError(e);
+            notificarObservadores(Eventos.tomarPozo_NO_exitoso);
+            return false;
+        }
+    }
+
+    @Override
+    public void bajarJuego(int indice, int[] posicionesAtril) {
+        try {
+            gestorTurnos.validarEsTurno(indice);
+            gestorTurnos.validarEstado(EstadoTurno.JUGAR, "Debes tomar una ficha antes de bajar un juego.");
+            Jugador jugador = jugadores.get(indice);
+            jugador.bajarJuego(posicionesAtril);
+            verificarTomaMuerto(jugador);
+            notificarObservadores(Eventos.bajarJuego_exitoso);
+        } catch (Exception e) {
+            registrarError(e);
+            notificarObservadores(Eventos.bajarJuego_NO_exitoso);
+        }
+    }
+
+    @Override
+    public void apoyarJuego(int posAtril, int posJuego, int indice, int numJuego) {
+        try {
+            gestorTurnos.validarEsTurno(indice);
+            gestorTurnos.validarEstado(EstadoTurno.JUGAR, "Debes tomar una ficha antes de apoyar.");
+            Jugador jugador = jugadores.get(indice);
+            jugador.apoyarJuego(posAtril, posJuego, numJuego);
+            verificarTomaMuerto(jugador);
+            notificarObservadores(Eventos.apoyarJuego_exitoso);
+        } catch (Exception e) {
+            registrarError(e);
+            notificarObservadores(Eventos.apoyarJuego_NO_exitoso);
+        }
+    }
+
+    @Override
+    public void agregarPozo(int posAtril, int indice) {
+        try {
+            gestorTurnos.validarEsTurno(indice);
+            gestorTurnos.validarEstado(EstadoTurno.JUGAR, "Debes tomar una ficha antes de descartar al pozo.");
+            Jugador jugador = jugadores.get(indice);
+            Ficha ficha = jugador.verAtril(posAtril);
+            jugador.sacarAtril(ficha);
+            pozo.agregar(ficha);
+
+            if (jugador.atrilVacio()) {
+                if (!jugador.yaTomoMuerto() && gestorMuertos.hayMuertosDisponibles()) {
+                    // Toma indirecta del muerto: el turno SÍ avanza
+                    gestorMuertos.intentarAsignarMuerto(jugador);
+                    notificarObservadores(Eventos.tomarMuerto_exitoso);
+                    gestorTurnos.avanzarTurno();
                 } else if (jugador.yaTomoMuerto() && jugador.tieneCanasta()) {
-                    // Cutting
-                    this.estadoTurno = EstadoTurno.PARTIDA_TERMINADA;
-                    notificarObservador(Eventos.cortar_exitoso);
-                    notificarObservador(Eventos.partida_terminada);
+                    // Corte exitoso
+                    gestorTurnos.finalizarPartida();
+                    notificarObservadores(Eventos.cortar_exitoso);
+                    notificarObservadores(Eventos.partida_terminada);
                 } else {
-                    // If they can't cut but are empty, they must be forced to take a ficha or something? 
-                    // The rule says: "tirar una ficha y quedarse con otra en su atril" if they don't have a canasta.
-                    // This means they shouldn't have been able to discard their LAST ficha.
-                    // I will throw an exception to prevent discarding the last ficha without a canasta.
-                    throw new Exception("No puedes quedarte sin fichas (cortar) sin tener al menos una canasta.");
+                    // No puede quedarse sin fichas sin cumplir condiciones de corte
+                    throw new Exception("No puedes descartar tu última ficha sin tener al menos una canasta.");
                 }
             } else {
-                avanzarTurno();
+                gestorTurnos.avanzarTurno();
             }
-            
-            notificarObservador(Eventos.agregarPozo_exitoso);
+
+            notificarObservadores(Eventos.agregarPozo_exitoso);
         } catch (Exception e) {
-            notificarObservador(Eventos.agregarPozo_NO_exitoso,e);
+            registrarError(e);
+            notificarObservadores(Eventos.agregarPozo_NO_exitoso);
         }
     }
 
-    public String getPuntajesFinales() {
-        StringBuilder sb = new StringBuilder("Partida Terminada!\nResultados:\n");
-        int ganador = -1;
-        // If the game ended by cutting, the player who JUST played (previous turn) is the winner.
-        if (estadoTurno == EstadoTurno.PARTIDA_TERMINADA) {
-             ganador = (turnoActual); // Since we didn't call avanzarTurno() when cutting
-        }
-        for (int i = 0; i < jugadores.size(); i++) {
-            Jugador j = jugadores.get(i);
-            int puntos = j.calcularPuntaje(i == ganador);
-            sb.append(j.getNombre()).append(": ").append(puntos).append(" puntos\n");
-        }
-        return sb.toString();
+    // ── Acceso directo a Jugador (para compatibilidad con tests) ──────────────
+
+    /**
+     * Retorna el jugador en el índice indicado.
+     * Usado por los tests existentes; el Controlador no debe usar este método.
+     */
+    public Jugador getJugador(int indice) {
+        return jugadores.get(indice);
     }
 
-    public Jugador getJugador(int numero) {
-        return jugadores.get(numero);
-    }
+    // ── Helpers privados ──────────────────────────────────────────────────────
 
-    @Override
-    public void agregarObservador(Observador obsevador) {
-        this.observadores.add(obsevador);
-    }
-
-    @Override
-    public void notificarObservador(Eventos eventos) {
-        for(Observador ob: this.observadores){
-            ob.notificar(eventos);
-        }
-    }
-
-    public void setNombres(String nombreJugador1, String nombreJugador2) {
-        this.jugadores.get(0).setNombre(nombreJugador1);
-        this.jugadores.get(1).setNombre(nombreJugador2);
-    }
-
-    public ArrayList<FichaMostrable> getPozo() {
-        return this.pozo.get();
-    }
-
-    public boolean agarrarPozo(int turno) {
-        try {
-            validarTurno(turno);
-            validarEstado(EstadoTurno.TOMAR, "No puedes tomar el pozo en este momento");
-            ArrayList<Ficha> fichas=sacarPozo();
-            if(fichas.isEmpty()){
-                throw new Exception("El pozo esta vacio");
+    /**
+     * Si el jugador quedó sin fichas tras bajar/apoyar, intenta asignarle el muerto
+     * (toma directa). El turno NO avanza en toma directa.
+     */
+    private void verificarTomaMuerto(Jugador jugador) {
+        if (jugador.atrilVacio()) {
+            boolean asignado = gestorMuertos.intentarAsignarMuerto(jugador);
+            if (asignado) {
+                notificarObservadores(Eventos.tomarMuerto_exitoso);
             }
-            getJugador(turno).agregarAtril(fichas);
-            estadoTurno = EstadoTurno.JUGAR;
-            notificarObservador(Eventos.tomarPozo_exitoso);
-            return true;
-        } catch (Exception e) {
-            notificarObservador(Eventos.tomarPozo_NO_exitoso, e);
-            return false;
         }
     }
 
-    public boolean agarrarMazo(int turno) {
-        try {
-            validarTurno(turno);
-            validarEstado(EstadoTurno.TOMAR, "No puedes tomar una ficha en este momento");
-            Ficha ficha=sacarMazo();
-            if(ficha==null){
-                throw new Exception("No fue posible tomar una ficha del mazo");
-            }
-            getJugador(turno).agregarAtril(ficha);
-            estadoTurno = EstadoTurno.JUGAR;
-            notificarObservador(Eventos.tomarMazo_exitoso);
-            return true;
-        } catch (Exception e) {
-            notificarObservador(Eventos.tomarMazo_NO_exitoso, e);
-            return false;
-        }
+    /** Guarda el mensaje de la excepción para que el Controlador lo consulte. */
+    private void registrarError(Exception e) {
+        ultimoMensajeError = e.getMessage() != null ? e.getMessage() : "Error desconocido.";
     }
-
-    public void bajarJuego(int turno, int[] listafichas) {
-        try {
-            validarTurno(turno);
-            validarEstado(EstadoTurno.JUGAR, "Debes tomar una ficha antes de bajar un juego");
-            Jugador jugador = getJugador(turno);
-            jugador.bajarJuego(listafichas);
-            
-            // Check for Direct Muerto
-            if (jugador.getAtril().isEmpty()) {
-                if (!jugador.yaTomoMuerto() && !muertos.isEmpty()) {
-                    // Direct taking of Muerto
-                    ArrayList<Ficha> fichasMuerto = muertos.remove(0).tomar();
-                    jugador.agregarAtril(fichasMuerto);
-                    jugador.setYaTomoMuerto(true);
-                    notificarObservador(Eventos.tomarMuerto_exitoso);
-                } else if (jugador.yaTomoMuerto() && jugador.tieneCanasta()) {
-                    // This is only possible if they meld everything AND discard something, 
-                    // or if they meld everything and it's their last action but rules say they must discard to cut?
-                    // "Al terminar debe dejar una ficha en el pozo" for direct taking.
-                    // "Para poder finalizar... el jugador debe tener al menos una canasta".
-                    // The direct empty hand here means they must take the Muerto.
-                    // If they already have the Muerto, they can't empty hand in bajarJuego and cut, 
-                    // because they always have to discard one at the end?
-                    // Actually, "una vez que un jugador se queda sin fichas... ha finalizado".
-                    // "Por ejemplo: un jugador solo tiene una ficha y toma una del mazo. La ficha obtenida la puede colocar en uno de sus juegos y entonces tirar la ficha que tenia y cerrar la partida"
-                    // So cutting happens in agregarPozo (discarding).
-                }
-            }
-            
-            notificarObservador(Eventos.bajarJuego_exitoso);
-        } catch (Exception e) {
-            notificarObservador(Eventos.bajarJuego_NO_exitoso, e);
-        }
-    }
-
-    public void apoyarJuego(int ficha, int pos,int turno,int juego) {
-        try {
-            validarTurno(turno);
-            validarEstado(EstadoTurno.JUGAR, "Debes tomar una ficha antes de apoyar");
-            Jugador jugador = getJugador(turno);
-            jugador.apoyarJuego(ficha, pos, juego);
-            
-            // Check for Direct Muerto
-            if (jugador.getAtril().isEmpty()) {
-                if (!jugador.yaTomoMuerto() && !muertos.isEmpty()) {
-                    ArrayList<Ficha> fichasMuerto = muertos.remove(0).tomar();
-                    jugador.agregarAtril(fichasMuerto);
-                    jugador.setYaTomoMuerto(true);
-                    notificarObservador(Eventos.tomarMuerto_exitoso);
-                }
-            }
-            
-            notificarObservador(Eventos.apoyarJuego_exitoso);
-        } catch (Exception e) {
-            notificarObservador(Eventos.apoyarJuego_NO_exitoso, e);
-        }
-    }
-
-    private Ficha sacarMazo(){
-        return this.mazo.sacarFicha();
-    }
-    private ArrayList<Ficha> sacarPozo(){
-        return this.pozo.tomar();
-    }
-
-
-    public void notificarObservador(Eventos eventos, Exception e) {
-        for(Observador ob: this.observadores){
-            ob.notificar(eventos,e);
-        }
-    }
-
-    public int getTurnoActual() {
-        return turnoActual;
-    }
-
-    public EstadoTurno getEstadoTurno() {
-        return estadoTurno;
-    }
-
-    public boolean puedeTomar(int turno) {
-        return turnoActual == turno && estadoTurno == EstadoTurno.TOMAR;
-    }
-
-    public boolean puedeJugar(int turno) {
-        return turnoActual == turno && estadoTurno == EstadoTurno.JUGAR;
-    }
-
-    private void validarTurno(int turno) throws Exception {
-        if (turno != turnoActual) {
-            throw new Exception("No es el turno del jugador " + getJugador(turno).getNombre());
-        }
-    }
-
-    private void validarEstado(EstadoTurno estadoEsperado, String mensaje) throws Exception {
-        if (estadoTurno != estadoEsperado) {
-            throw new Exception(mensaje);
-        }
-    }
-
-    private void avanzarTurno() {
-        turnoActual = (turnoActual + 1) % jugadores.size();
-        estadoTurno = EstadoTurno.TOMAR;
-    }
-
 }

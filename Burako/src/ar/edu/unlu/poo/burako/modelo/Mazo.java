@@ -1,50 +1,76 @@
 package ar.edu.unlu.poo.burako.modelo;
 
-import java.awt.*;
-import java.text.BreakIterator;
 import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
-import static ar.edu.unlu.poo.burako.modelo.Ficha_Color.*;
-
-import java.util.Collections;
+/**
+ * Representa el mazo de fichas de Burako (106 fichas: 4 colores × 13 números × 2 + 2 comodines).
+ *
+ * MODIFICADO respecto al original:
+ * - Eliminados imports de java.awt.Color, java.text.BreakIterator (eran dependencias
+ *   de presentación inadvertidas y totalmente innecesarias en el modelo de dominio).
+ * - El método fichaColorSig(), que antes vivía en Ficha como método estático de utilidad,
+ *   se movió aquí como método privado ya que solo lo usa Mazo para construirse.
+ * - Cambiado ArrayList a List en firmas para reducir acoplamiento con la implementación.
+ */
 public class Mazo {
-    private ArrayList<Ficha> mazo;
 
-    public Mazo(){
-        this.mazo= new ArrayList<>();
-        Ficha_Color color = Rojo;
-        Ficha_Num num = Ficha_Num._1_;
-        for (int i = 0; i < 4; i++) {
-            for (int j = 0; j < 13; j++) {
-                this.mazo.add(new Ficha(color,num));
-                this.mazo.add(new Ficha(color,num));
-                num=Ficha.fichaNumSig(num,false);
+    private final List<Ficha> fichas;
+
+    public Mazo() {
+        fichas = new ArrayList<>();
+
+        FichaColor color = FichaColor.Rojo;
+        for (int c = 0; c < 4; c++) {
+            for (FichaNumero num : numerosBase()) {
+                fichas.add(new Ficha(color, num));
+                fichas.add(new Ficha(color, num)); // cada número aparece dos veces por color
             }
-            color=Ficha.fichaColorSig(color);
+            color = siguienteColor(color);
         }
-        this.mazo.add(new Ficha(Negro,Ficha_Num.Comodin));
-        this.mazo.add(new Ficha(Negro,Ficha_Num.Comodin));
-        this.mesclar();
+        fichas.add(new Ficha(FichaColor.Negro, FichaNumero.Comodin));
+        fichas.add(new Ficha(FichaColor.Negro, FichaNumero.Comodin));
+
+        Collections.shuffle(fichas);
     }
 
-
-
-    private void mesclar(){
-        Collections.shuffle(this.mazo); // Desordena la lista
+    /**
+     * Extrae y retorna las primeras {@code cantidad} fichas del mazo.
+     */
+    public List<Ficha> sacar(int cantidad) {
+        List<Ficha> extraidas = new ArrayList<>(fichas.subList(0, cantidad));
+        fichas.subList(0, cantidad).clear();
+        return extraidas;
     }
 
-
-    public ArrayList<Ficha> sacar(int cant) {
-        ArrayList<Ficha> remazo=new ArrayList<>(this.mazo.subList(0, cant ));
-        for(Ficha f: remazo){
-            this.mazo.remove(f);
-        }
-        return remazo;
-    }
-
+    /**
+     * Extrae y retorna la primera ficha del mazo.
+     * @return la ficha, o null si el mazo está vacío.
+     */
     public Ficha sacarFicha() {
-        return this.mazo.removeFirst();
+        if (fichas.isEmpty()) return null;
+        return fichas.remove(0);
+    }
+
+    /** Retorna true si el mazo está vacío. */
+    public boolean estaVacio() {
+        return fichas.isEmpty();
+    }
+
+    // ── Helpers privados ───────────────────────────────────────────────────────
+
+    /** Los 13 números base (sin comodín). */
+    private static FichaNumero[] numerosBase() {
+        FichaNumero[] todos = FichaNumero.values();
+        FichaNumero[] base  = new FichaNumero[todos.length - 1]; // excluye Comodin
+        System.arraycopy(todos, 0, base, 0, base.length);
+        return base;
+    }
+
+    private static FichaColor siguienteColor(FichaColor actual) {
+        FichaColor[] colores = FichaColor.values();
+        int idx = actual.ordinal();
+        return idx < colores.length - 1 ? colores[idx + 1] : colores[0];
     }
 }
