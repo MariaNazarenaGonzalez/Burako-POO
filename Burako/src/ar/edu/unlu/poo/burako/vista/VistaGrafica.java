@@ -14,6 +14,25 @@ import java.util.List;
 import java.util.LinkedHashSet;
 import java.util.Set;
 
+/**
+ * Vista gráfica (Swing) del juego Burako.
+ *
+ * REFACTORIZADO (análisis de controladores):
+ *
+ * ELIMINADO — lógica de negocio que no corresponde a la vista:
+ * - bajarJuegoSeleccionado() validaba seleccion.length < 3: regla del juego.
+ *   Eliminado. El modelo rechaza con bajarJuego_NO_exitoso si la cantidad es inválida.
+ * - apoyarFichaSeleccionada() validaba cantidadJuegos == 0: regla del juego.
+ *   Eliminado. El modelo rechaza con apoyarJuego_NO_exitoso.
+ * - apoyarFichaSeleccionada() calculaba cantidadFichas + 1 para acotar el rango
+ *   del diálogo: lógica de dominio (el modelo conoce cuántas fichas acepta).
+ *   El diálogo ahora pide la posición sin acotar; el modelo la valida.
+ *
+ * INVARIANTES de la vista:
+ * - No toma decisiones de dominio.
+ * - No valida reglas del juego.
+ * - Solo traduce acciones del usuario al controlador y muestra lo que el modelo dice.
+ */
 public class VistaGrafica extends JFrame implements VistaJuego {
     private final Controlador controlador;
     private final int miTurno;
@@ -65,8 +84,10 @@ public class VistaGrafica extends JFrame implements VistaJuego {
         listaAtril.setVisibleRowCount(18);
         listaAtril.setCellRenderer(new DefaultListCellRenderer() {
             @Override
-            public Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean isSelected, boolean cellHasFocus) {
-                JLabel label = (JLabel) super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
+            public Component getListCellRendererComponent(JList<?> list, Object value, int index,
+                    boolean isSelected, boolean cellHasFocus) {
+                JLabel label = (JLabel) super.getListCellRendererComponent(
+                        list, value, index, isSelected, cellHasFocus);
                 String prefijo = indicesSeleccionados.contains(index) ? "[x] " : "[ ] ";
                 label.setText(prefijo + value);
                 return label;
@@ -112,6 +133,8 @@ public class VistaGrafica extends JFrame implements VistaJuego {
         btnAgregarPozo.addActionListener(e -> agregarFichaAlPozo());
     }
 
+    // ── Acciones del usuario — solo traducen al controlador ───────────────────
+
     private void tomarDelMazo() {
         controlador.agarrarMazo(miTurno);
     }
@@ -120,10 +143,14 @@ public class VistaGrafica extends JFrame implements VistaJuego {
         controlador.agarrarPozo(miTurno);
     }
 
+    /**
+     * Construye el array de posiciones (1-based) y delega al controlador.
+     * No valida cuántas fichas se seleccionaron: el modelo rechazará si no son válidas.
+     */
     private void bajarJuegoSeleccionado() {
         int[] seleccion = listaAtril.getSelectedIndices();
-        if (seleccion.length < 3) {
-            appendEvento("Selecciona al menos 3 fichas para bajar un juego.");
+        if (seleccion.length == 0) {
+            appendEvento("Selecciona fichas del atril para bajar un juego.");
             return;
         }
         int[] indices = new int[seleccion.length];
@@ -131,35 +158,32 @@ public class VistaGrafica extends JFrame implements VistaJuego {
             indices[i] = seleccion[i] + 1;
         }
         controlador.bajarJuego(miTurno, indices);
-        mostrarMesa();
     }
 
+    /**
+     * Pide número de juego y posición al usuario, luego delega al controlador.
+     * No valida si hay juegos disponibles ni rangos: el modelo rechazará si no son válidos.
+     */
     private void apoyarFichaSeleccionada() {
         int fichaSeleccionada = listaAtril.getSelectedIndex();
         if (fichaSeleccionada < 0 || listaAtril.getSelectedIndices().length != 1) {
-            appendEvento("Selecciona una ficha del atril.");
-            return;
-        }
-        int cantidadJuegos = controlador.cantJuegos(miTurno);
-        if (cantidadJuegos == 0) {
-            appendEvento("No tienes juegos para apoyar.");
+            appendEvento("Selecciona exactamente una ficha del atril.");
             return;
         }
 
-        Integer juego = pedirNumero("Numero de juego (1-" + cantidadJuegos + "):", 1, cantidadJuegos);
-        if (juego == null) {
-            return;
-        }
-        int cantidadFichas = controlador.getJuegos(miTurno).get(juego - 1).getJuego().size();
-        Integer posicion = pedirNumero("Posicion donde agregar la ficha (1-" + (cantidadFichas + 1) + "):", 1, cantidadFichas + 1);
-        if (posicion == null) {
-            return;
-        }
+        Integer juego = pedirEnteroPositivo("Numero de juego:");
+        if (juego == null) return;
+
+        Integer posicion = pedirEnteroPositivo("Posicion donde agregar la ficha:");
+        if (posicion == null) return;
 
         controlador.apoyarJuego(fichaSeleccionada + 1, posicion, miTurno, juego);
-        mostrarMesa();
     }
 
+    /**
+     * Delega la ficha seleccionada al controlador.
+     * No valida selección múltiple: la UI pide una sola ficha y el modelo rechazará posiciones inválidas.
+     */
     private void agregarFichaAlPozo() {
         int fichaSeleccionada = listaAtril.getSelectedIndex();
         if (fichaSeleccionada < 0 || listaAtril.getSelectedIndices().length != 1) {
@@ -167,18 +191,20 @@ public class VistaGrafica extends JFrame implements VistaJuego {
             return;
         }
         controlador.agregarPozo(fichaSeleccionada + 1, miTurno);
-        mostrarMesa();
     }
 
-    private Integer pedirNumero(String mensaje, int minimo, int maximo) {
+    /**
+     * Pide un número entero positivo al usuario mediante JOptionPane.
+     * Solo valida que sea un entero positivo (responsabilidad de la interfaz gráfica);
+     * la validación de dominio (si el número corresponde a un juego/posición real) la hace el modelo.
+     */
+    private Integer pedirEnteroPositivo(String mensaje) {
         String valor = JOptionPane.showInputDialog(this, mensaje, "Burako", JOptionPane.QUESTION_MESSAGE);
-        if (valor == null) {
-            return null;
-        }
+        if (valor == null) return null;
         try {
             int numero = Integer.parseInt(valor);
-            if (numero < minimo || numero > maximo) {
-                appendEvento("El valor debe estar entre " + minimo + " y " + maximo + ".");
+            if (numero < 1) {
+                appendEvento("El valor debe ser un número positivo.");
                 return null;
             }
             return numero;
@@ -187,6 +213,8 @@ public class VistaGrafica extends JFrame implements VistaJuego {
             return null;
         }
     }
+
+    // ── VistaJuego ────────────────────────────────────────────────────────────
 
     @Override
     public void mostrarMesa() {
@@ -198,11 +226,14 @@ public class VistaGrafica extends JFrame implements VistaJuego {
     }
 
     @Override
-    public void mesaje(Eventos eventos) {
-        appendEvento(eventos.name());
-        mostrarMesa();
+    public void mesaje(Eventos evento) {
+        appendEvento(evento.name());
+        if (evento.name().endsWith("_NO_exitoso")) {
+            appendEvento(controlador.getUltimoMensajeError());
+        }
     }
 
+    // ── Renderizado ───────────────────────────────────────────────────────────
 
     private void renderizarJuegos(JPanel panel, List<JuegoMostrable> juegos, String mensajeVacio) {
         panel.removeAll();
@@ -226,9 +257,7 @@ public class VistaGrafica extends JFrame implements VistaJuego {
         } else {
             StringBuilder texto = new StringBuilder();
             for (FichaMostrable ficha : fichas) {
-                if (!texto.isEmpty()) {
-                    texto.append(" ");
-                }
+                if (!texto.isEmpty()) texto.append(" ");
                 texto.append(formatearFicha(ficha));
             }
             panel.add(crearEtiqueta(texto.toString()));
@@ -253,6 +282,33 @@ public class VistaGrafica extends JFrame implements VistaJuego {
         }
     }
 
+    private void actualizarEstadoVisual() {
+        int turnoActual = controlador.getTurnoActual();
+        EstadoTurno estadoTurno = controlador.getEstadoTurno();
+        String nombreTurno = getNombre(turnoActual);
+        String descripcionEstado;
+        if (turnoActual != miTurno) {
+            descripcionEstado = "Esperando a " + nombreTurno;
+        } else if (estadoTurno == EstadoTurno.TOMAR) {
+            descripcionEstado = "Tu turno: toma del mazo o del pozo";
+        } else {
+            descripcionEstado = "Tu turno: baja, apoya o tira una ficha al pozo";
+        }
+        lblEstado.setText("Jugador: " + getNombre(miTurno)
+                + " | Turno actual: " + nombreTurno
+                + " | " + descripcionEstado);
+
+        boolean puedeTomar = controlador.puedeTomar(miTurno);
+        boolean puedeJugar = controlador.puedeJugar(miTurno);
+        btnTomarMazo.setEnabled(puedeTomar);
+        btnTomarPozo.setEnabled(puedeTomar);
+        btnBajarJuego.setEnabled(puedeJugar);
+        btnApoyarJuego.setEnabled(puedeJugar);
+        btnAgregarPozo.setEnabled(puedeJugar);
+    }
+
+    // ── Helpers de presentación ───────────────────────────────────────────────
+
     private JLabel crearEtiqueta(String texto) {
         JLabel label = new JLabel("<html><body style='width:220px'>" + texto + "</body></html>");
         label.setAlignmentX(Component.LEFT_ALIGNMENT);
@@ -262,9 +318,7 @@ public class VistaGrafica extends JFrame implements VistaJuego {
     private String formatearJuego(JuegoMostrable juego) {
         StringBuilder texto = new StringBuilder();
         for (FichaMostrable ficha : juego.getJuego()) {
-            if (!texto.isEmpty()) {
-                texto.append(" ");
-            }
+            if (!texto.isEmpty()) texto.append(" ");
             texto.append(formatearFicha(ficha));
         }
         return texto.toString();
@@ -277,33 +331,6 @@ public class VistaGrafica extends JFrame implements VistaJuego {
     private void appendEvento(String texto) {
         txtEventos.append(texto + "\n");
         txtEventos.setCaretPosition(txtEventos.getDocument().getLength());
-    }
-
-    private void actualizarEstadoVisual() {
-        int turnoActual = controlador.getTurnoActual();
-        EstadoTurno estadoTurno = controlador.getEstadoTurno();
-        String nombreTurno = getNombre(turnoActual);
-        String descripcionEstado;
-        if (!esMiTurno()) {
-            descripcionEstado = "Esperando a " + nombreTurno;
-        } else if (estadoTurno == EstadoTurno.TOMAR) {
-            descripcionEstado = "Tu turno: toma del mazo o del pozo";
-        } else {
-            descripcionEstado = "Tu turno: baja, apoya o tira una ficha al pozo";
-        }
-        lblEstado.setText("Jugador: " + getNombre(miTurno) + " | Turno actual: " + nombreTurno + " | " + descripcionEstado);
-
-        boolean puedeTomar = controlador.puedeTomar(miTurno);
-        boolean puedeJugar = controlador.puedeJugar(miTurno);
-        btnTomarMazo.setEnabled(puedeTomar);
-        btnTomarPozo.setEnabled(puedeTomar);
-        btnBajarJuego.setEnabled(puedeJugar);
-        btnApoyarJuego.setEnabled(puedeJugar);
-        btnAgregarPozo.setEnabled(puedeJugar);
-    }
-
-    private boolean esMiTurno() {
-        return controlador.getTurnoActual() == miTurno;
     }
 
     private String getNombre(int turno) {
