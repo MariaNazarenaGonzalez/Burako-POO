@@ -249,20 +249,24 @@ public class Burako implements IBurako {
                 return;
             }
 
-            notificarObservadores(Eventos.agregarPozo_exitoso);
-
             if (ReglasDeJuego.correspondeTomaMuertoIndirecta(ctxFinal)) {
                 gestorMuertos.asignarMuerto(jugador);
-                notificarObservadores(Eventos.tomarMuerto_exitoso);
                 gestorTurnos.avanzarTurno();
+                notificarObservadores(Eventos.agregarPozo_exitoso);
+                notificarObservadores(Eventos.tomarMuerto_exitoso);
             } else if (ReglasDeJuego.puedeCortar(ctxFinal)) {
                 gestorTurnos.finalizarPartida();
+                notificarObservadores(Eventos.agregarPozo_exitoso);
                 notificarObservadores(Eventos.cortar_exitoso);
                 notificarObservadores(Eventos.partida_terminada);
+            } else {
+                // Atril vacío sin muerto ni corte: avanzar turno normalmente
+                gestorTurnos.avanzarTurno();
+                notificarObservadores(Eventos.agregarPozo_exitoso);
             }
         } else {
-            notificarObservadores(Eventos.agregarPozo_exitoso);
             gestorTurnos.avanzarTurno();
+            notificarObservadores(Eventos.agregarPozo_exitoso);
         }
     }
 
