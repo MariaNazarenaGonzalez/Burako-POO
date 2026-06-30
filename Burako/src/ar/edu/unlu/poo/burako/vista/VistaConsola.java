@@ -18,61 +18,98 @@ import java.util.List;
 /**
  * Vista consola del juego Burako.
  *
- * REFACTORIZADO (análisis de controladores):
+ * CORRECCIÓN (Fase 5 → compilación):
+ * Los campos de UI (panelPrincipal, txtSalida, etc.) eran inicializados por el
+ * método generado por IntelliJ GUI Designer a partir del archivo .form.
+ * Al reescribir la clase programáticamente ese método desapareció, y
+ * setContentPane(panelPrincipal) recibía null.
+ * Se agrega crearUI() que construye los componentes antes de setContentPane.
+ * El layout replica fielmente el definido en VistaConsola.form.
  *
- * ELIMINADO — lógica de negocio que no corresponde a la vista:
- * - Campo "turno" propio: la vista no administra el turno; lo consulta al modelo
- *   via controlador.getTurnoActual(). Tener un turno local duplicaba el estado
- *   y podía desincronizarse.
- * - mostrarMENU_CambioTurno() calculaba (turno+1)%2 para decidir si "es mi turno":
- *   esto es lógica de dominio. Ahora se consulta controlador.getTurnoActual().
- * - mostraBajarJuego() validaba getAtril(turno).size() >= 3: regla del juego.
- *   Eliminado; el modelo rechaza la jugada y notifica bajarJuego_NO_exitoso.
- * - mostrarApoyarJuego() validaba cantJuegos(turno) > 0: regla del juego.
- *   Eliminado; el modelo rechaza la jugada y notifica apoyarJuego_NO_exitoso.
- * - isNumero() validaba numero <= getAtril(turno).size(): validación de dominio.
- *   Ahora solo verifica que la entrada sea un entero positivo; el modelo valida
- *   si la posición existe en el atril.
- * - mesaje(Eventos) tenía un if(eventos==agregarPozo_exitoso) para avanzar el turno
- *   visual: lógica de flujo. Ahora mesaje() solo muestra; mostrarMesa() se encarga
- *   de reflejar el estado actual del modelo (incluido el turno nuevo).
- *
- * INVARIANTES de la vista:
- * - No toma decisiones de dominio.
+ * INVARIANTES de las fases anteriores: intactos.
+ * - No contiene lógica de dominio.
  * - No valida reglas del juego.
- * - Solo traduce acciones del usuario al controlador y muestra lo que el modelo dice.
+ * - El turno se consulta al controlador, no se calcula aquí.
  */
 public class VistaConsola extends JFrame implements VistaJuego {
+
     private final Controlador controlador;
-    private JPanel panelPrincipal;
-    private JTextPane txtSalida;
-    private JTextField txtEntrada;
-    private JButton btnEnter;
+    private final int         miTurno;
+
+    // ── Componentes UI (instanciados en crearUI()) ────────────────────────────
+    private JPanel      panelPrincipal;
+    private JTextPane   txtSalida;
+    private JTextField  txtEntrada;
+    private JButton     btnEnter;
     private JScrollPane scroll;
+
+    // ── Estado de la máquina de estados de la consola ─────────────────────────
     private EstadoVistaConsola estado;
-    private final int miTurno;
-    private int[] listafichas = {};
-    private int f;
-    private int j;
+    private int[]              listafichas = {};
+    private int                f;
+    private int                j;
 
     public VistaConsola(Controlador controlador, int turno) {
-        setTitle("Burako");
+        this.controlador = controlador;
+        this.miTurno     = turno;
+
+        // crearUI() DEBE preceder a setContentPane; construye panelPrincipal.
+        crearUI();
+
+        setTitle("Burako - " + controlador.getNombre(turno));
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setSize(600, 600);
         setLocationRelativeTo(null);
         setContentPane(panelPrincipal);
-        this.controlador = controlador;
-        this.miTurno = turno;
-        this.txtSalida.setFont(new Font("Monospaced", Font.BOLD, 17));
-        this.txtEntrada.setFont(new Font("Monospaced", Font.BOLD, 14));
 
-        btnEnter.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                procesarEntrada(txtEntrada.getText());
-                txtEntrada.setText("");
-            }
+        conectarAcciones();
+        actualizarMenuSegunTurno();
+    }
+
+    // ── Construcción de la UI (reemplaza el .form de IntelliJ) ───────────────
+
+    /**
+     * Construye la interfaz programáticamente.
+     * Layout equivalente al definido en VistaConsola.form:
+     *   - GridLayout 2 filas × 1 columna con margen
+     *   - Fila 0: scroll con JTextPane (salida de texto coloreado)
+     *   - Fila 1: campo de texto + botón Enter
+     */
+    private void crearUI() {
+        panelPrincipal = new JPanel(new BorderLayout(4, 4));
+        panelPrincipal.setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));
+
+        // Área de salida
+        txtSalida = new JTextPane();
+        txtSalida.setEditable(false);
+        txtSalida.setFont(new Font("Monospaced", Font.BOLD, 14));
+        txtSalida.setForeground(new Color(0xD96443)); // color original del .form
+
+        scroll = new JScrollPane(txtSalida);
+        scroll.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_ALWAYS);
+        panelPrincipal.add(scroll, BorderLayout.CENTER);
+
+        // Panel inferior: entrada + botón
+        JPanel panelEntrada = new JPanel(new BorderLayout(4, 0));
+        txtEntrada = new JTextField();
+        txtEntrada.setFont(new Font("Monospaced", Font.BOLD, 14));
+        btnEnter = new JButton("Enter");
+
+        panelEntrada.add(txtEntrada, BorderLayout.CENTER);
+        panelEntrada.add(btnEnter,   BorderLayout.EAST);
+        panelPrincipal.add(panelEntrada, BorderLayout.SOUTH);
+    }
+
+    private void conectarAcciones() {
+        btnEnter.addActionListener(e -> {
+            procesarEntrada(txtEntrada.getText());
+            txtEntrada.setText("");
         });
+
+        // Enter en el campo de texto dispara el botón
+        txtEntrada.addActionListener(e -> btnEnter.doClick());
+
+        // Enter global en la ventana también lo dispara
         btnEnter.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW)
                 .put(KeyStroke.getKeyStroke("ENTER"), "buttonPressed");
         btnEnter.getActionMap().put("buttonPressed", new AbstractAction() {
@@ -81,35 +118,20 @@ public class VistaConsola extends JFrame implements VistaJuego {
                 btnEnter.doClick();
             }
         });
-
-        // La vista consulta al modelo quién juega primero; no lo asume.
-        actualizarMenuSegunTurno();
     }
 
     // ── Entrada del usuario ───────────────────────────────────────────────────
 
     private void procesarEntrada(String entrada) {
         switch (estado) {
-            case MENU_CambioTurno:
-                procesarMenu_CambioTurno(entrada);
-                break;
-            case MENU_CambioTurnoOtro:
-                procesarEspera_CambioTurno();
-                break;
-            case MENU_Jugada:
-                procesarMenu_Jugada(entrada);
-                break;
-            case BajarJuego:
-                procesarBajarJuego(entrada);
-                break;
+            case MENU_CambioTurno:     procesarMenu_CambioTurno(entrada); break;
+            case MENU_CambioTurnoOtro: procesarEspera_CambioTurno();      break;
+            case MENU_Jugada:          procesarMenu_Jugada(entrada);       break;
+            case BajarJuego:           procesarBajarJuego(entrada);        break;
             case ApoyarJuego_Juego:
             case ApoyarJuego_Ficha:
-            case ApoyarJuego_Pos:
-                procesarApoyarJuego(entrada);
-                break;
-            case AgregarPozo:
-                procesarAgregarPozo(entrada);
-                break;
+            case ApoyarJuego_Pos:      procesarApoyarJuego(entrada);       break;
+            case AgregarPozo:          procesarAgregarPozo(entrada);       break;
         }
     }
 
@@ -122,7 +144,7 @@ public class VistaConsola extends JFrame implements VistaJuego {
         int turnoActual = controlador.getTurnoActual();
         switch (entrada) {
             case "1":
-                if (this.controlador.agarrarMazo(turnoActual)) {
+                if (controlador.agarrarMazo(turnoActual)) {
                     println("Agarraste una ficha del mazo.\nTú atril:\n");
                     mostrarAtril(miTurno);
                     print("\n");
@@ -133,7 +155,7 @@ public class VistaConsola extends JFrame implements VistaJuego {
                 }
                 break;
             case "2":
-                if (this.controlador.agarrarPozo(turnoActual)) {
+                if (controlador.agarrarPozo(turnoActual)) {
                     println("Agarraste una ficha del pozo.\nTú atril:\n");
                     mostrarAtril(miTurno);
                     print("\n");
@@ -177,7 +199,7 @@ public class VistaConsola extends JFrame implements VistaJuego {
             listafichas = nuevoArray;
         } else if (entrada.contentEquals(".")) {
             println(entrada);
-            this.controlador.bajarJuego(controlador.getTurnoActual(), listafichas);
+            controlador.bajarJuego(controlador.getTurnoActual(), listafichas);
             listafichas = new int[0];
             mostrarMenu_Jugada();
         }
@@ -207,7 +229,7 @@ public class VistaConsola extends JFrame implements VistaJuego {
             case ApoyarJuego_Pos:
                 if (esEnteroPositivo(entrada)) {
                     int p = Integer.parseInt(entrada);
-                    this.controlador.apoyarJuego(f, p, controlador.getTurnoActual(), j);
+                    controlador.apoyarJuego(f, p, controlador.getTurnoActual(), j);
                     mostrarMenu_Jugada();
                 } else {
                     println("opcion invalida");
@@ -219,8 +241,7 @@ public class VistaConsola extends JFrame implements VistaJuego {
     private void procesarAgregarPozo(String entrada) {
         if (esEnteroPositivo(entrada)) {
             println(entrada);
-            int n = Integer.parseInt(entrada);
-            this.controlador.agregarPozo(n, controlador.getTurnoActual());
+            controlador.agregarPozo(Integer.parseInt(entrada), controlador.getTurnoActual());
         } else {
             print("\n entrada invalida _vuelve a intentar_:");
         }
@@ -228,21 +249,15 @@ public class VistaConsola extends JFrame implements VistaJuego {
 
     // ── Menús de presentación ─────────────────────────────────────────────────
 
-    /**
-     * Decide qué menú mostrar según el turno actual del modelo.
-     * La vista no calcula el turno; lo consulta.
-     */
     private void actualizarMenuSegunTurno() {
         if (controlador.getTurnoActual() == miTurno) {
             estado = EstadoVistaConsola.MENU_CambioTurno;
             println("Es turno de " + getNombre(miTurno));
             mostrarMesa();
-            print("\n" +
-                "opciones:\n" +
-                "1- Agarrar una ficha del mazo\n" +
-                "2- Agarrar todo el pozo\n" +
-                "¿Qué quieres hacer?:\n" +
-                "");
+            print("opciones:\n" +
+                  "1- Agarrar una ficha del mazo\n" +
+                  "2- Agarrar todo el pozo\n" +
+                  "¿Qué quieres hacer?:");
         } else {
             estado = EstadoVistaConsola.MENU_CambioTurnoOtro;
             println("Es turno de " + getNombre(controlador.getTurnoActual()));
@@ -252,29 +267,20 @@ public class VistaConsola extends JFrame implements VistaJuego {
 
     private void mostrarMenu_Jugada() {
         estado = EstadoVistaConsola.MENU_Jugada;
-        print("\n" +
-                "opciones:\n" +
-                "1- Bajar un Juego\n" +
-                "2- Apoyar un juego de la Mesa\n" +
-                "3- Ceder el turno/Poner una Ficha en el pozo\n" +
-                "¿Qué quieres hacer?:");
+        print("opciones:\n" +
+              "1- Bajar un Juego\n" +
+              "2- Apoyar un juego de la Mesa\n" +
+              "3- Ceder el turno/Poner una Ficha en el pozo\n" +
+              "¿Qué quieres hacer?:");
     }
 
-    /**
-     * La vista no valida si hay fichas suficientes para bajar (regla del modelo).
-     * Muestra el menú y delega; el modelo rechazará con bajarJuego_NO_exitoso si no es válido.
-     */
     private void mostraBajarJuego() {
         estado = EstadoVistaConsola.BajarJuego;
         mostrarMesa();
         print("Para seleccionar fichas indique su numero de indice \n" +
-                "separado por ENTER, indique fin de selección con . :");
+              "separado por ENTER, indique fin de selección con . :");
     }
 
-    /**
-     * La vista no valida si hay juegos disponibles para apoyar (regla del modelo).
-     * Muestra el menú y delega; el modelo rechazará con apoyarJuego_NO_exitoso si no es válido.
-     */
     private void mostrarApoyarJuego() {
         estado = EstadoVistaConsola.ApoyarJuego_Juego;
         mostrarMesa();
@@ -291,10 +297,8 @@ public class VistaConsola extends JFrame implements VistaJuego {
 
     @Override
     public void mostrarMesa() {
-        int turnoActual = controlador.getTurnoActual();
         int rival = (miTurno + 1) % 2;
-        println("\tLa mesa se ve así:\n" +
-                "El lado de " + getNombre(rival));
+        println("\tLa mesa se ve así:\nEl lado de " + getNombre(rival));
         mostrarJuegos(rival);
         print("\n");
         println("El lado de " + getNombre(miTurno) + " (tú)");
@@ -306,14 +310,12 @@ public class VistaConsola extends JFrame implements VistaJuego {
         println("Tú atril:");
         mostrarAtril(miTurno);
         print("\n");
-        println("Turno actual: " + getNombre(turnoActual));
+        println("Turno actual: " + getNombre(controlador.getTurnoActual()));
     }
 
     @Override
     public void mesaje(Eventos eventos) {
         println(eventos.name());
-        // Al recibir cualquier evento, refrescar el menú según el estado
-        // actual del modelo — sin calcular turnos ni anticipar flujo.
         if (eventos == Eventos.agregarPozo_exitoso
                 || eventos == Eventos.tomarMuerto_exitoso
                 || eventos == Eventos.cortar_exitoso
@@ -355,8 +357,7 @@ public class VistaConsola extends JFrame implements VistaJuego {
 
     private void mostrarJuegos(int jugador) {
         int i = 1;
-        List<JuegoMostrable> listaJuegos = controlador.getJuegos(jugador);
-        for (JuegoMostrable j : listaJuegos) {
+        for (JuegoMostrable j : controlador.getJuegos(jugador)) {
             print("   " + i + "-");
             mostrarJuego(j);
             print("\n");
@@ -365,8 +366,7 @@ public class VistaConsola extends JFrame implements VistaJuego {
     }
 
     public void mostrarJuego(JuegoMostrable j) {
-        List<FichaMostrable> listaJuego = j.getJuego();
-        for (FichaMostrable f : listaJuego) {
+        for (FichaMostrable f : j.getFichas()) {
             print("[");
             printColor(f.getColor().name(), f.getColor().name());
             print("_");
@@ -375,16 +375,12 @@ public class VistaConsola extends JFrame implements VistaJuego {
         }
     }
 
-    // ── Helpers de presentación ───────────────────────────────────────────────
+    // ── Helpers ───────────────────────────────────────────────────────────────
 
     private String getNombre(int turno) {
-        return this.controlador.getNombre(turno);
+        return controlador.getNombre(turno);
     }
 
-    /**
-     * Valida únicamente que la entrada sea un entero positivo.
-     * Si la posición no existe en el atril, el modelo lo rechazará.
-     */
     private boolean esEnteroPositivo(String entrada) {
         try {
             return Integer.parseInt(entrada) >= 1;
@@ -404,11 +400,11 @@ public class VistaConsola extends JFrame implements VistaJuego {
         StyledDocument doc = txtSalida.getStyledDocument();
         SimpleAttributeSet attrs = new SimpleAttributeSet();
         switch (color) {
-            case "Rojo":    StyleConstants.setForeground(attrs, Color.RED);    break;
-            case "Negro":   StyleConstants.setForeground(attrs, Color.BLACK);  break;
-            case "Amarillo":StyleConstants.setForeground(attrs, Color.YELLOW); break;
-            case "Azul":    StyleConstants.setForeground(attrs, Color.BLUE);   break;
-            default:        StyleConstants.setForeground(attrs, Color.BLACK);
+            case "Rojo":     StyleConstants.setForeground(attrs, Color.RED);    break;
+            case "Negro":    StyleConstants.setForeground(attrs, Color.BLACK);  break;
+            case "Amarillo": StyleConstants.setForeground(attrs, Color.YELLOW); break;
+            case "Azul":     StyleConstants.setForeground(attrs, Color.BLUE);   break;
+            default:         StyleConstants.setForeground(attrs, Color.BLACK);
         }
         try {
             doc.insertString(doc.getLength(), texto, attrs);

@@ -10,125 +10,175 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
-import java.util.List;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Set;
 
 /**
  * Vista gráfica (Swing) del juego Burako.
  *
- * REFACTORIZADO (análisis de controladores):
+ * CORRECCIÓN (Fase 5 → compilación):
+ * Los campos de UI eran inicializados por el método generado por IntelliJ
+ * GUI Designer. Al reescribir la clase ese método desapareció y
+ * setContentPane(panelPrincipal) recibía null.
+ * Se agrega crearUI() que construye todos los componentes antes de setContentPane.
+ * El layout replica fielmente el definido en VistaGrafica.form:
+ *   - Fila 0: lblEstado (etiqueta de turno)
+ *   - Fila 1: 4 columnas → juegos rival | mis juegos | pozo | atril
+ *   - Fila 2: botones de acción + área de eventos
  *
- * ELIMINADO — lógica de negocio que no corresponde a la vista:
- * - bajarJuegoSeleccionado() validaba seleccion.length < 3: regla del juego.
- *   Eliminado. El modelo rechaza con bajarJuego_NO_exitoso si la cantidad es inválida.
- * - apoyarFichaSeleccionada() validaba cantidadJuegos == 0: regla del juego.
- *   Eliminado. El modelo rechaza con apoyarJuego_NO_exitoso.
- * - apoyarFichaSeleccionada() calculaba cantidadFichas + 1 para acotar el rango
- *   del diálogo: lógica de dominio (el modelo conoce cuántas fichas acepta).
- *   El diálogo ahora pide la posición sin acotar; el modelo la valida.
- *
- * INVARIANTES de la vista:
- * - No toma decisiones de dominio.
+ * INVARIANTES de las fases anteriores: intactos.
+ * - No contiene lógica de dominio.
  * - No valida reglas del juego.
- * - Solo traduce acciones del usuario al controlador y muestra lo que el modelo dice.
  */
 public class VistaGrafica extends JFrame implements VistaJuego {
-    private final Controlador controlador;
-    private final int miTurno;
-    private final Set<Integer> indicesSeleccionados;
-    private DefaultListModel<String> modeloAtril;
 
-    private JPanel panelPrincipal;
-    private JLabel lblEstado;
-    private JPanel panelJuegosRival;
-    private JPanel panelMisJuegos;
-    private JPanel panelPozo;
-    private JList<String> listaAtril;
-    private JLabel lblAyudaAtril;
-    private JButton btnTomarMazo;
-    private JButton btnTomarPozo;
-    private JButton btnBajarJuego;
-    private JButton btnApoyarJuego;
-    private JButton btnAgregarPozo;
-    private JTextArea txtEventos;
+    private final Controlador controlador;
+    private final int         miTurno;
+    private final Set<Integer> indicesSeleccionados = new LinkedHashSet<>();
+
+    // ── Componentes UI (instanciados en crearUI()) ────────────────────────────
+    private JPanel              panelPrincipal;
+    private JLabel              lblEstado;
+    private JPanel              panelJuegosRival;
+    private JPanel              panelMisJuegos;
+    private JPanel              panelPozo;
+    private JList<String>       listaAtril;
+    private DefaultListModel<String> modeloAtril;
+    private JLabel              lblAyudaAtril;
+    private JButton             btnTomarMazo;
+    private JButton             btnTomarPozo;
+    private JButton             btnBajarJuego;
+    private JButton             btnApoyarJuego;
+    private JButton             btnAgregarPozo;
+    private JTextArea           txtEventos;
 
     public VistaGrafica(Controlador controlador, int turno) {
         this.controlador = controlador;
-        this.miTurno = turno;
-        this.indicesSeleccionados = new LinkedHashSet<>();
+        this.miTurno     = turno;
 
-        setTitle("Burako - " + getNombre(miTurno));
+        // crearUI() DEBE preceder a setContentPane; construye panelPrincipal.
+        crearUI();
+
+        setTitle("Burako - " + controlador.getNombre(turno));
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setSize(1100, 700);
         setLocationByPlatform(true);
         setContentPane(panelPrincipal);
 
-        inicializarForma();
         conectarAcciones();
         mostrarMesa();
-        appendEvento("Vista grafica lista para " + getNombre(miTurno) + ".");
+        appendEvento("Vista lista para " + controlador.getNombre(turno) + ".");
         actualizarEstadoVisual();
     }
 
-    private void inicializarForma() {
-        lblEstado.setFont(new Font("SansSerif", Font.BOLD, 18));
+    // ── Construcción de la UI (reemplaza el .form de IntelliJ) ───────────────
 
-        configurarPanelSeccion(panelJuegosRival, "Juegos del rival");
-        configurarPanelSeccion(panelMisJuegos, "Tus juegos");
-        configurarPanelSeccion(panelPozo, "Pozo");
+    /**
+     * Construye la interfaz programáticamente.
+     * Layout equivalente al definido en VistaGrafica.form:
+     *   BorderLayout principal con:
+     *   - NORTH: etiqueta de estado
+     *   - CENTER: 4 paneles de juego (rival | propio | pozo | atril)
+     *   - SOUTH: botones de acción + log de eventos
+     */
+    private void crearUI() {
+        panelPrincipal = new JPanel(new BorderLayout(12, 12));
+        panelPrincipal.setBorder(BorderFactory.createEmptyBorder(12, 12, 12, 12));
 
+        // ── Fila 0: estado ────────────────────────────────────────────────────
+        lblEstado = new JLabel("Estado");
+        lblEstado.setFont(new Font("SansSerif", Font.BOLD, 16));
+        panelPrincipal.add(lblEstado, BorderLayout.NORTH);
+
+        // ── Fila 1: 4 columnas de juego ───────────────────────────────────────
+        JPanel panelMesa = new JPanel(new GridLayout(1, 4, 12, 0));
+
+        panelJuegosRival = crearPanelSeccion("Juegos del rival");
+        panelMisJuegos   = crearPanelSeccion("Tus juegos");
+        panelPozo        = crearPanelSeccion("Pozo");
+
+        // Atril con JList y ayuda
+        JPanel panelAtrilContenedor = new JPanel(new BorderLayout(0, 4));
+        panelAtrilContenedor.setBorder(BorderFactory.createTitledBorder("Tu atril"));
         modeloAtril = new DefaultListModel<>();
-        listaAtril.setModel(modeloAtril);
+        listaAtril  = new JList<>(modeloAtril);
         listaAtril.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
         listaAtril.setVisibleRowCount(18);
-        listaAtril.setCellRenderer(new DefaultListCellRenderer() {
-            @Override
-            public Component getListCellRendererComponent(JList<?> list, Object value, int index,
-                    boolean isSelected, boolean cellHasFocus) {
-                JLabel label = (JLabel) super.getListCellRendererComponent(
-                        list, value, index, isSelected, cellHasFocus);
-                String prefijo = indicesSeleccionados.contains(index) ? "[x] " : "[ ] ";
-                label.setText(prefijo + value);
-                return label;
-            }
-        });
+        listaAtril.setCellRenderer(crearRendererAtril());
+        lblAyudaAtril = new JLabel("Clic para marcar/desmarcar fichas.");
+        lblAyudaAtril.setFont(new Font("SansSerif", Font.ITALIC, 11));
+        panelAtrilContenedor.add(new JScrollPane(listaAtril), BorderLayout.CENTER);
+        panelAtrilContenedor.add(lblAyudaAtril, BorderLayout.SOUTH);
+
+        panelMesa.add(new JScrollPane(panelJuegosRival));
+        panelMesa.add(new JScrollPane(panelMisJuegos));
+        panelMesa.add(new JScrollPane(panelPozo));
+        panelMesa.add(panelAtrilContenedor);
+        panelPrincipal.add(panelMesa, BorderLayout.CENTER);
+
+        // ── Fila 2: botones + log ─────────────────────────────────────────────
+        JPanel panelInferior = new JPanel(new BorderLayout(12, 0));
+
+        JPanel panelBotones = new JPanel(new GridLayout(5, 1, 0, 8));
+        panelBotones.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, 8));
+        btnTomarMazo   = new JButton("Tomar del mazo");
+        btnTomarPozo   = new JButton("Tomar del pozo");
+        btnBajarJuego  = new JButton("Bajar juego");
+        btnApoyarJuego = new JButton("Apoyar ficha");
+        btnAgregarPozo = new JButton("Tirar al pozo");
+        panelBotones.add(btnTomarMazo);
+        panelBotones.add(btnTomarPozo);
+        panelBotones.add(btnBajarJuego);
+        panelBotones.add(btnApoyarJuego);
+        panelBotones.add(btnAgregarPozo);
+
+        txtEventos = new JTextArea(6, 40);
+        txtEventos.setEditable(false);
+        txtEventos.setLineWrap(true);
+        txtEventos.setWrapStyleWord(true);
+
+        panelInferior.add(panelBotones, BorderLayout.WEST);
+        panelInferior.add(new JScrollPane(txtEventos), BorderLayout.CENTER);
+        panelPrincipal.add(panelInferior, BorderLayout.SOUTH);
+
+        // Listener de selección del atril
         listaAtril.addMouseListener(new MouseAdapter() {
             @Override
             public void mousePressed(MouseEvent e) {
-                int indice = listaAtril.locationToIndex(e.getPoint());
-                if (indice >= 0) {
-                    alternarSeleccionAtril(indice);
+                int idx = listaAtril.locationToIndex(e.getPoint());
+                if (idx >= 0) {
+                    alternarSeleccionAtril(idx);
                     e.consume();
                 }
             }
         });
-
-        lblAyudaAtril.setText("Clic para marcar o desmarcar fichas del atril.");
-        txtEventos.setEditable(false);
-        txtEventos.setLineWrap(true);
-        txtEventos.setWrapStyleWord(true);
     }
 
-    private void configurarPanelSeccion(JPanel panel, String titulo) {
+    private JPanel crearPanelSeccion(String titulo) {
+        JPanel panel = new JPanel();
         panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
         panel.setBorder(BorderFactory.createTitledBorder(titulo));
+        return panel;
     }
 
-    private void alternarSeleccionAtril(int indice) {
-        if (indicesSeleccionados.contains(indice)) {
-            indicesSeleccionados.remove(indice);
-        } else {
-            indicesSeleccionados.add(indice);
-        }
-        sincronizarSeleccionAtril();
-        listaAtril.repaint();
+    private ListCellRenderer<? super String> crearRendererAtril() {
+        return new DefaultListCellRenderer() {
+            @Override
+            public Component getListCellRendererComponent(JList<?> list, Object value,
+                    int index, boolean isSelected, boolean cellHasFocus) {
+                JLabel label = (JLabel) super.getListCellRendererComponent(
+                        list, value, index, isSelected, cellHasFocus);
+                label.setText((indicesSeleccionados.contains(index) ? "[x] " : "[ ] ") + value);
+                return label;
+            }
+        };
     }
 
     private void conectarAcciones() {
-        btnTomarMazo.addActionListener(e -> tomarDelMazo());
-        btnTomarPozo.addActionListener(e -> tomarDelPozo());
-        btnBajarJuego.addActionListener(e -> bajarJuegoSeleccionado());
+        btnTomarMazo.addActionListener(e   -> tomarDelMazo());
+        btnTomarPozo.addActionListener(e   -> tomarDelPozo());
+        btnBajarJuego.addActionListener(e  -> bajarJuegoSeleccionado());
         btnApoyarJuego.addActionListener(e -> apoyarFichaSeleccionada());
         btnAgregarPozo.addActionListener(e -> agregarFichaAlPozo());
     }
@@ -143,10 +193,7 @@ public class VistaGrafica extends JFrame implements VistaJuego {
         controlador.agarrarPozo(miTurno);
     }
 
-    /**
-     * Construye el array de posiciones (1-based) y delega al controlador.
-     * No valida cuántas fichas se seleccionaron: el modelo rechazará si no son válidas.
-     */
+    /** No valida cantidad mínima: el modelo rechazará con bajarJuego_NO_exitoso si es inválido. */
     private void bajarJuegoSeleccionado() {
         int[] seleccion = listaAtril.getSelectedIndices();
         if (seleccion.length == 0) {
@@ -160,16 +207,13 @@ public class VistaGrafica extends JFrame implements VistaJuego {
         controlador.bajarJuego(miTurno, indices);
     }
 
-    /**
-     * Pide número de juego y posición al usuario, luego delega al controlador.
-     * No valida si hay juegos disponibles ni rangos: el modelo rechazará si no son válidos.
-     */
+    /** No valida si hay juegos disponibles: el modelo rechazará con apoyarJuego_NO_exitoso si es inválido. */
     private void apoyarFichaSeleccionada() {
-        int fichaSeleccionada = listaAtril.getSelectedIndex();
-        if (fichaSeleccionada < 0 || listaAtril.getSelectedIndices().length != 1) {
+        if (listaAtril.getSelectedIndices().length != 1) {
             appendEvento("Selecciona exactamente una ficha del atril.");
             return;
         }
+        int fichaSeleccionada = listaAtril.getSelectedIndex();
 
         Integer juego = pedirEnteroPositivo("Numero de juego:");
         if (juego == null) return;
@@ -180,33 +224,22 @@ public class VistaGrafica extends JFrame implements VistaJuego {
         controlador.apoyarJuego(fichaSeleccionada + 1, posicion, miTurno, juego);
     }
 
-    /**
-     * Delega la ficha seleccionada al controlador.
-     * No valida selección múltiple: la UI pide una sola ficha y el modelo rechazará posiciones inválidas.
-     */
     private void agregarFichaAlPozo() {
-        int fichaSeleccionada = listaAtril.getSelectedIndex();
-        if (fichaSeleccionada < 0 || listaAtril.getSelectedIndices().length != 1) {
+        if (listaAtril.getSelectedIndices().length != 1) {
             appendEvento("Selecciona una sola ficha para tirar al pozo.");
             return;
         }
-        controlador.agregarPozo(fichaSeleccionada + 1, miTurno);
+        controlador.agregarPozo(listaAtril.getSelectedIndex() + 1, miTurno);
     }
 
-    /**
-     * Pide un número entero positivo al usuario mediante JOptionPane.
-     * Solo valida que sea un entero positivo (responsabilidad de la interfaz gráfica);
-     * la validación de dominio (si el número corresponde a un juego/posición real) la hace el modelo.
-     */
+    /** Solo valida que sea entero positivo; la validación de dominio la hace el modelo. */
     private Integer pedirEnteroPositivo(String mensaje) {
-        String valor = JOptionPane.showInputDialog(this, mensaje, "Burako", JOptionPane.QUESTION_MESSAGE);
+        String valor = JOptionPane.showInputDialog(this, mensaje, "Burako",
+                JOptionPane.QUESTION_MESSAGE);
         if (valor == null) return null;
         try {
             int numero = Integer.parseInt(valor);
-            if (numero < 1) {
-                appendEvento("El valor debe ser un número positivo.");
-                return null;
-            }
+            if (numero < 1) { appendEvento("El valor debe ser un número positivo."); return null; }
             return numero;
         } catch (NumberFormatException e) {
             appendEvento("Debes ingresar un numero.");
@@ -218,9 +251,9 @@ public class VistaGrafica extends JFrame implements VistaJuego {
 
     @Override
     public void mostrarMesa() {
-        renderizarJuegos(panelJuegosRival, controlador.getJuegos((miTurno + 1) % 2), "Sin juegos");
-        renderizarJuegos(panelMisJuegos, controlador.getJuegos(miTurno), "Sin juegos");
-        renderizarFichas(panelPozo, controlador.getPozo(), "Pozo vacio");
+        renderizarJuegos(panelJuegosRival, controlador.getJuegos((miTurno + 1) % 2));
+        renderizarJuegos(panelMisJuegos,   controlador.getJuegos(miTurno));
+        renderizarFichas(panelPozo,        controlador.getPozo());
         renderizarAtril(controlador.getAtril(miTurno));
         actualizarEstadoVisual();
     }
@@ -235,32 +268,32 @@ public class VistaGrafica extends JFrame implements VistaJuego {
 
     // ── Renderizado ───────────────────────────────────────────────────────────
 
-    private void renderizarJuegos(JPanel panel, List<JuegoMostrable> juegos, String mensajeVacio) {
+    private void renderizarJuegos(JPanel panel, List<JuegoMostrable> juegos) {
         panel.removeAll();
         if (juegos.isEmpty()) {
-            panel.add(crearEtiqueta(mensajeVacio));
+            panel.add(crearEtiqueta("Sin juegos"));
         } else {
-            int numeroJuego = 1;
+            int n = 1;
             for (JuegoMostrable juego : juegos) {
-                panel.add(crearEtiqueta("Juego " + numeroJuego + ": " + formatearJuego(juego)));
-                numeroJuego++;
+                panel.add(crearEtiqueta(n + ": " + formatearJuego(juego)));
+                n++;
             }
         }
         panel.revalidate();
         panel.repaint();
     }
 
-    private void renderizarFichas(JPanel panel, List<FichaMostrable> fichas, String mensajeVacio) {
+    private void renderizarFichas(JPanel panel, List<FichaMostrable> fichas) {
         panel.removeAll();
         if (fichas.isEmpty()) {
-            panel.add(crearEtiqueta(mensajeVacio));
+            panel.add(crearEtiqueta("Pozo vacio"));
         } else {
-            StringBuilder texto = new StringBuilder();
-            for (FichaMostrable ficha : fichas) {
-                if (!texto.isEmpty()) texto.append(" ");
-                texto.append(formatearFicha(ficha));
+            StringBuilder sb = new StringBuilder();
+            for (FichaMostrable f : fichas) {
+                if (sb.length() > 0) sb.append(" ");
+                sb.append(formatearFicha(f));
             }
-            panel.add(crearEtiqueta(texto.toString()));
+            panel.add(crearEtiqueta(sb.toString()));
         }
         panel.revalidate();
         panel.repaint();
@@ -275,31 +308,39 @@ public class VistaGrafica extends JFrame implements VistaJuego {
         }
     }
 
-    private void sincronizarSeleccionAtril() {
-        listaAtril.clearSelection();
-        for (Integer indice : indicesSeleccionados) {
-            listaAtril.addSelectionInterval(indice, indice);
+    private void alternarSeleccionAtril(int indice) {
+        if (indicesSeleccionados.contains(indice)) {
+            indicesSeleccionados.remove(indice);
+        } else {
+            indicesSeleccionados.add(indice);
         }
+        listaAtril.clearSelection();
+        for (Integer i : indicesSeleccionados) {
+            listaAtril.addSelectionInterval(i, i);
+        }
+        listaAtril.repaint();
     }
 
     private void actualizarEstadoVisual() {
-        int turnoActual = controlador.getTurnoActual();
-        EstadoTurno estadoTurno = controlador.getEstadoTurno();
-        String nombreTurno = getNombre(turnoActual);
-        String descripcionEstado;
-        if (turnoActual != miTurno) {
-            descripcionEstado = "Esperando a " + nombreTurno;
-        } else if (estadoTurno == EstadoTurno.TOMAR) {
-            descripcionEstado = "Tu turno: toma del mazo o del pozo";
-        } else {
-            descripcionEstado = "Tu turno: baja, apoya o tira una ficha al pozo";
-        }
-        lblEstado.setText("Jugador: " + getNombre(miTurno)
-                + " | Turno actual: " + nombreTurno
-                + " | " + descripcionEstado);
+        int         turnoActual  = controlador.getTurnoActual();
+        EstadoTurno estadoTurno  = controlador.getEstadoTurno();
+        String      nombreTurno  = controlador.getNombre(turnoActual);
 
-        boolean puedeTomar = controlador.puedeTomar(miTurno);
-        boolean puedeJugar = controlador.puedeJugar(miTurno);
+        String descripcion;
+        if (turnoActual != miTurno) {
+            descripcion = "Esperando a " + nombreTurno;
+        } else if (estadoTurno == EstadoTurno.TOMAR) {
+            descripcion = "Tu turno: toma del mazo o del pozo";
+        } else {
+            descripcion = "Tu turno: baja, apoya o tira una ficha al pozo";
+        }
+
+        lblEstado.setText("Jugador: " + controlador.getNombre(miTurno)
+                + "  |  Turno: " + nombreTurno
+                + "  |  " + descripcion);
+
+        boolean puedeTomar  = controlador.puedeTomar(miTurno);
+        boolean puedeJugar  = controlador.puedeJugar(miTurno);
         btnTomarMazo.setEnabled(puedeTomar);
         btnTomarPozo.setEnabled(puedeTomar);
         btnBajarJuego.setEnabled(puedeJugar);
@@ -310,30 +351,26 @@ public class VistaGrafica extends JFrame implements VistaJuego {
     // ── Helpers de presentación ───────────────────────────────────────────────
 
     private JLabel crearEtiqueta(String texto) {
-        JLabel label = new JLabel("<html><body style='width:220px'>" + texto + "</body></html>");
+        JLabel label = new JLabel("<html><body style='width:200px'>" + texto + "</body></html>");
         label.setAlignmentX(Component.LEFT_ALIGNMENT);
         return label;
     }
 
     private String formatearJuego(JuegoMostrable juego) {
-        StringBuilder texto = new StringBuilder();
-        for (FichaMostrable ficha : juego.getJuego()) {
-            if (!texto.isEmpty()) texto.append(" ");
-            texto.append(formatearFicha(ficha));
+        StringBuilder sb = new StringBuilder();
+        for (FichaMostrable f : juego.getFichas()) {
+            if (sb.length() > 0) sb.append(" ");
+            sb.append(formatearFicha(f));
         }
-        return texto.toString();
+        return sb.toString();
     }
 
-    private String formatearFicha(FichaMostrable ficha) {
-        return "[" + ficha.getColor().name() + "_" + ficha.getNum().name() + "]";
+    private String formatearFicha(FichaMostrable f) {
+        return "[" + f.getColor().name() + "_" + f.getNum().name() + "]";
     }
 
     private void appendEvento(String texto) {
         txtEventos.append(texto + "\n");
         txtEventos.setCaretPosition(txtEventos.getDocument().getLength());
-    }
-
-    private String getNombre(int turno) {
-        return controlador.getNombre(turno);
     }
 }
