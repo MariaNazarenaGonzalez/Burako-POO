@@ -1,5 +1,7 @@
 package ar.edu.unlu.poo.burako.modelo;
 
+import java.io.Serializable;
+
 /**
  * Gestiona el estado del turno: quién juega y en qué fase está.
  *
@@ -10,8 +12,13 @@ package ar.edu.unlu.poo.burako.modelo;
  * GestorTurnos solo expone transiciones: marcarFichaTomada(), avanzarTurno(),
  * finalizarPartida(). Burako las invoca DESPUÉS de que ReglasDeJuego aprobó
  * la acción.
+ *
+ * MODIFICADO (Fase 6 - Persistencia): implementa Serializable; el turno
+ * actual y la fase forman parte del estado guardable de una partida.
  */
-class GestorTurnos {
+class GestorTurnos implements Serializable {
+
+    private static final long serialVersionUID = 1L;
 
     private int         turnoActual;
     private EstadoTurno estado;

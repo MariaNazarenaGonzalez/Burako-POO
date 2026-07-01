@@ -1,5 +1,6 @@
 package ar.edu.unlu.poo.burako.modelo;
 
+import java.io.Serializable;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.List;
@@ -13,8 +14,14 @@ import java.util.List;
  *
  * Burako pregunta a ReglasDeJuego si corresponde, y si corresponde,
  * llama asignarMuerto(jugador) aquí.
+ *
+ * MODIFICADO (Fase 6 - Persistencia): implementa Serializable; los muertos
+ * pendientes forman parte del estado guardable de una partida. ArrayDeque
+ * ya implementa Serializable en la biblioteca estándar.
  */
-class GestorMuertos {
+class GestorMuertos implements Serializable {
+
+    private static final long serialVersionUID = 1L;
 
     private final Deque<Muerto> muertos;
 

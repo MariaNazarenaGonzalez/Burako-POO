@@ -1,0 +1,4 @@
+La mesa se ve así:
+	1.[4-rojo]+[5-rojo]+[6-rojo]
+	2.[4-azul]+[5-azul]+[6-azul]
+	3.[6-azul]+[6-rojo]+[6-amarillo]

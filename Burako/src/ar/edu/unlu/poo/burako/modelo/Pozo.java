@@ -1,5 +1,6 @@
 package ar.edu.unlu.poo.burako.modelo;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -13,8 +14,12 @@ import java.util.List;
  * - Cambiado ArrayList a List en firmas públicas.
  * - get() retorna vista no modificable (unmodifiableList).
  * - estaVacio() agregado para evitar consultar get().isEmpty() en el modelo.
+ * - (Fase 6) Implementa Serializable: forma parte del estado guardable
+ *   de una partida (es referenciado desde Burako).
  */
-public class Pozo {
+public class Pozo implements Serializable {
+
+    private static final long serialVersionUID = 1L;
 
     private List<Ficha> fichas;
 

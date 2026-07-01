@@ -1,5 +1,6 @@
 package ar.edu.unlu.poo.burako.modelo;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -20,8 +21,13 @@ import java.util.List;
  * - calcularPuntaje() delega completamente a ReglasDeJuego.calcularPuntaje().
  * - bajarJuego() y apoyarJuego() no validan reglas, solo ejecutan.
  * - Acceso de paquete para métodos invocados por Burako y GestorMuertos.
+ *
+ * MODIFICADO (Fase 6 - Persistencia): implementa Serializable para formar
+ * parte del estado guardable de una partida (es referenciado desde Burako).
  */
-public class Jugador {
+public class Jugador implements Serializable {
+
+    private static final long serialVersionUID = 1L;
 
     private final Atril       atril;
     private final List<Juego> juegos;

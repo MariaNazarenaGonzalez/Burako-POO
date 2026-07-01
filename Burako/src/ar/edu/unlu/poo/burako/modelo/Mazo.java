@@ -1,5 +1,6 @@
 package ar.edu.unlu.poo.burako.modelo;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -13,8 +14,12 @@ import java.util.List;
  * - El método fichaColorSig(), que antes vivía en Ficha como método estático de utilidad,
  *   se movió aquí como método privado ya que solo lo usa Mazo para construirse.
  * - Cambiado ArrayList a List en firmas para reducir acoplamiento con la implementación.
+ * - (Fase 6) Implementa Serializable: el orden restante del mazo forma parte
+ *   del estado guardable de una partida (es referenciado desde Burako).
  */
-public class Mazo {
+public class Mazo implements Serializable {
+
+    private static final long serialVersionUID = 1L;
 
     private final List<Ficha> fichas;
 

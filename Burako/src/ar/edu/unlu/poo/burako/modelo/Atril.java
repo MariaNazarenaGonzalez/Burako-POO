@@ -1,5 +1,6 @@
 package ar.edu.unlu.poo.burako.modelo;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -14,8 +15,12 @@ import java.util.List;
  *   la implementación subyacente ni permitir modificaciones externas
  *   (se usa unmodifiableList).
  * - Sin importaciones de Swing, AWT ni consola.
+ * - (Fase 6) Implementa Serializable: forma parte del estado guardable
+ *   de una partida (es referenciado desde Jugador).
  */
-public class Atril {
+public class Atril implements Serializable {
+
+    private static final long serialVersionUID = 1L;
 
     private final List<Ficha> fichas;
 

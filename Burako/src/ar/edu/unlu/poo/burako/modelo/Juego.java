@@ -1,5 +1,6 @@
 package ar.edu.unlu.poo.burako.modelo;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -16,8 +17,14 @@ import java.util.List;
  *
  * calcularPuntaje() aplica los bonos de Burako limpio (+200) y sucio (+100)
  * ya que son propiedades del juego en sí, no del jugador.
+ *
+ * MODIFICADO (Fase 6 - Persistencia): implementa Serializable; las fichas
+ * bajadas a la mesa forman parte del estado guardable de una partida
+ * (es referenciado desde Jugador).
  */
-public class Juego implements JuegoMostrable {
+public class Juego implements JuegoMostrable, Serializable {
+
+    private static final long serialVersionUID = 1L;
 
     private final List<Ficha> fichas;
     private TipoJuego         tipo;

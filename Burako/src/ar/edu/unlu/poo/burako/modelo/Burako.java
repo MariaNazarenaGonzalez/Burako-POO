@@ -1,5 +1,6 @@
 package ar.edu.unlu.poo.burako.modelo;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -18,8 +19,21 @@ import java.util.List;
  *   3b. Si inválido: registrar mensaje, notificar evento _NO_exitoso.
  *
  * Burako NO contiene ninguna validación de negocio propia.
+ *
+ * MODIFICADO (Fase 6 - Persistencia):
+ * - Implementa Serializable para permitir guardar/recuperar el estado
+ *   completo de una partida usando Serialización Java (ver paquete
+ *   persistencia). No se altera ningún comportamiento ni regla del juego.
+ * - El campo "observadores" pasó de final a transient: los Observador
+ *   (p. ej. Controlador) NUNCA deben serializarse, ya que referencian
+ *   componentes de la capa de Vista. Al deserializar una partida la lista
+ *   se reconstruye vacía en readObject(); es Main quien vuelve a registrar
+ *   los observadores correspondientes (Controlador, ObservadorPersistencia),
+ *   igual que al crear una partida nueva.
  */
-public class Burako implements IBurako {
+public class Burako implements IBurako, Serializable {
+
+    private static final long serialVersionUID = 1L;
 
     private final List<Jugador> jugadores;
     private final Mazo          mazo;
@@ -27,8 +41,8 @@ public class Burako implements IBurako {
     private final GestorTurnos  gestorTurnos;
     private final GestorMuertos gestorMuertos;
 
-    private final List<Observador> observadores       = new ArrayList<>();
-    private String                 ultimoMensajeError = "";
+    private transient List<Observador> observadores = new ArrayList<>();
+    private String                     ultimoMensajeError = "";
 
     public Burako() {
         mazo = new Mazo();
@@ -349,5 +363,20 @@ public class Burako implements IBurako {
         ultimoMensajeError = mensaje != null ? mensaje : "Error desconocido.";
         notificarObservadores(evento);
         return false;
+    }
+
+    // ── Serialización ────────────────────────────────────────────────────────
+
+    /**
+     * Reconstruye la lista de observadores (transient) tras deserializar.
+     * Se restaura vacía a propósito: ningún Observador (Controlador, vistas,
+     * etc.) viaja con el archivo guardado. Quien recupera la partida
+     * (ver persistencia.PersistenciaService / Main) es responsable de
+     * volver a registrar los observadores que correspondan, tal como se
+     * hace al construir una partida nueva.
+     */
+    private void readObject(java.io.ObjectInputStream in) throws java.io.IOException, ClassNotFoundException {
+        in.defaultReadObject();
+        observadores = new ArrayList<>();
     }
 }

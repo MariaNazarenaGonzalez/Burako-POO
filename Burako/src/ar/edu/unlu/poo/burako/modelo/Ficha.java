@@ -1,5 +1,7 @@
 package ar.edu.unlu.poo.burako.modelo;
 
+import java.io.Serializable;
+
 /**
  * Representa una ficha individual de Burako.
  *
@@ -10,8 +12,13 @@ package ar.edu.unlu.poo.burako.modelo;
  *   usada por Mazo para construirse; se movió allí como método privado.
  * - Actualizado para usar FichaColor y FichaNumero (nombres corregidos).
  * - Ningún import de AWT, Swing ni consola.
+ * - (Fase 6) Implementa Serializable: es la unidad mínima del estado
+ *   guardable de una partida (mazo, pozo, atriles, muertos y juegos
+ *   bajados están compuestos de Ficha).
  */
-public class Ficha implements FichaMostrable {
+public class Ficha implements FichaMostrable, Serializable {
+
+    private static final long serialVersionUID = 1L;
 
     private final FichaColor color;
     private final FichaNumero numero;

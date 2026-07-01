@@ -1,5 +1,6 @@
 package ar.edu.unlu.poo.burako.modelo;
 
+import java.io.Serializable;
 import java.util.List;
 
 /**
@@ -11,8 +12,12 @@ import java.util.List;
  *   porque un Muerto nunca debería tomarse dos veces (el control es
  *   responsabilidad de GestorMuertos). Elimina null checks en el llamador.
  * - estaDisponible() agregado para permitir consulta sin efecto secundario.
+ * - (Fase 6) Implementa Serializable: forma parte del estado guardable
+ *   de una partida (es referenciado desde GestorMuertos).
  */
-public class Muerto {
+public class Muerto implements Serializable {
+
+    private static final long serialVersionUID = 1L;
 
     private final List<Ficha> fichas;
     private boolean tomado = false;
