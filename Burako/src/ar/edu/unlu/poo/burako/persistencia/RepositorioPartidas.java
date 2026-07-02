@@ -48,15 +48,23 @@ public class RepositorioPartidas implements IRepositorioPartidas {
     @Override
     public List<PartidaGuardada> listarPorUsuario(String idUsuario) {
         List<PartidaGuardada> resultado = new ArrayList<>();
+        for (PartidaGuardada partida : listarTodas()) {
+            if (partida.participaUsuario(idUsuario)) {
+                resultado.add(partida);
+            }
+        }
+        return resultado;
+    }
+
+    @Override
+    public List<PartidaGuardada> listarTodas() {
+        List<PartidaGuardada> resultado = new ArrayList<>();
         File[] archivos = carpeta.listFiles((dir, nombre) -> nombre.endsWith(".dat"));
         if (archivos == null) {
             return resultado;
         }
         for (File archivo : archivos) {
-            PartidaGuardada partida = Serializador.leer(archivo);
-            if (partida.participaUsuario(idUsuario)) {
-                resultado.add(partida);
-            }
+            resultado.add(Serializador.leer(archivo));
         }
         return resultado;
     }

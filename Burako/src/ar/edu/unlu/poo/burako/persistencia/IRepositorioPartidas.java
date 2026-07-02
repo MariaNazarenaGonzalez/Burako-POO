@@ -14,6 +14,9 @@ public interface IRepositorioPartidas {
     /** Lista todas las partidas guardadas en las que participa el usuario dado. */
     List<PartidaGuardada> listarPorUsuario(String idUsuario);
 
+    /** Lista todas las partidas guardadas existentes, sin filtrar por usuario. */
+    List<PartidaGuardada> listarTodas();
+
     /** Elimina el guardado de una partida (p. ej., al finalizar normalmente). */
     void eliminar(String id);
 }

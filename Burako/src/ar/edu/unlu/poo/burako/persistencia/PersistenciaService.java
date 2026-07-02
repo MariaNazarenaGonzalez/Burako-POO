@@ -82,6 +82,16 @@ public class PersistenciaService {
         return repositorioPartidas.listarPorUsuario(usuario.getId());
     }
 
+    /**
+     * Lista todas las partidas guardadas existentes, sin filtrar por usuario.
+     * Método de consulta agregado para la opción "Cargar partida" del menú
+     * gráfico: permite ofrecer todas las partidas disponibles sin exigir
+     * que el usuario se identifique primero.
+     */
+    public List<PartidaGuardada> listarPartidasGuardadas() {
+        return repositorioPartidas.listarTodas();
+    }
+
     // ── Cierre de partida y ranking ─────────────────────────────────────────
 
     /**
