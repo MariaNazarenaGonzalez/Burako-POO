@@ -13,7 +13,7 @@ public class Test_FlujoJuego {
     }
 
     @Test
-    public void testEstadoInicial() {
+    public void testEstadoInicial() throws Exception {
         // En Burako individual (2 jugadores), cada uno tiene 12 fichas iniciales.
         Assert.assertEquals(12, burako.getJugador(0).getAtril().size());
         Assert.assertEquals(12, burako.getJugador(1).getAtril().size());
@@ -34,7 +34,7 @@ public class Test_FlujoJuego {
     }
 
     @Test
-    public void testErrorTurnoIncorrecto() {
+    public void testErrorTurnoIncorrecto() throws Exception {
         // j1 intenta tomar del mazo cuando es el turno de j0
         boolean resultado = burako.agarrarMazo(1);
         Assert.assertFalse("j1 no debería poder tomar ficha si es turno de j0", resultado);

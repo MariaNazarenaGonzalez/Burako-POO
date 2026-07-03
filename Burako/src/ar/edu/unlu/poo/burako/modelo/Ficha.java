@@ -1,7 +1,5 @@
 package ar.edu.unlu.poo.burako.modelo;
 
-import java.io.Serializable;
-
 /**
  * Representa una ficha individual de Burako.
  *
@@ -16,7 +14,7 @@ import java.io.Serializable;
  *   guardable de una partida (mazo, pozo, atriles, muertos y juegos
  *   bajados están compuestos de Ficha).
  */
-public class Ficha implements FichaMostrable, Serializable {
+public class Ficha implements FichaMostrable {
 
     private static final long serialVersionUID = 1L;
 

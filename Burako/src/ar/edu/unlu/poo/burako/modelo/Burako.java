@@ -1,6 +1,9 @@
 package ar.edu.unlu.poo.burako.modelo;
 
+import ar.edu.unlu.rmimvc.observer.ObservableRemoto;
+
 import java.io.Serializable;
+import java.rmi.RemoteException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -24,14 +27,28 @@ import java.util.List;
  * - Implementa Serializable para permitir guardar/recuperar el estado
  *   completo de una partida usando Serialización Java (ver paquete
  *   persistencia). No se altera ningún comportamiento ni regla del juego.
- * - El campo "observadores" pasó de final a transient: los Observador
- *   (p. ej. Controlador) NUNCA deben serializarse, ya que referencian
- *   componentes de la capa de Vista. Al deserializar una partida la lista
- *   se reconstruye vacía en readObject(); es Main quien vuelve a registrar
- *   los observadores correspondientes (Controlador, ObservadorPersistencia),
- *   igual que al crear una partida nueva.
+ *
+ * MODIFICADO (Fase 9 - Integración RMIMVC):
+ * - Extiende ObservableRemoto (librería RMIMVC de la cátedra) en lugar de
+ *   gestionar la lista de observadores manualmente. Es el cambio obligatorio
+ *   documentado en el README de la librería: "Hacer que el modelo herede de
+ *   ObservableRemoto. Eliminar el comportamiento de gestión de observables
+ *   de la clase (ya lo gestiona la librería)". agregarObservador() y
+ *   notificarObservadores(Object) quedan heredados; ya no se declaran aquí.
+ * - Ya no hace falta el campo transient "observadores" ni el readObject()
+ *   personalizado de la Fase 6: ObservableRemoto NO implementa Serializable,
+ *   por lo que Java, al deserializar, invoca automáticamente su constructor
+ *   sin argumentos (que inicializa su lista de observadores vacía) para
+ *   reconstruir esa porción del objeto. El resultado es idéntico al
+ *   mecanismo anterior (observadores vacíos tras recuperar una partida)
+ *   pero ahora provisto por la librería en vez de código propio.
+ * - Cada método de IBurako ahora declara "throws RemoteException"; Burako,
+ *   al implementarlos, propaga la misma firma. Ningún método cambia su
+ *   lógica interna: las llamadas a notificarObservadores(Eventos) siguen
+ *   siendo textualmente idénticas (Eventos es un Object válido para el
+ *   notificarObservadores(Object) heredado).
  */
-public class Burako implements IBurako, Serializable {
+public class Burako extends ObservableRemoto implements IBurako, Serializable {
 
     private static final long serialVersionUID = 1L;
 
@@ -41,8 +58,7 @@ public class Burako implements IBurako, Serializable {
     private final GestorTurnos  gestorTurnos;
     private final GestorMuertos gestorMuertos;
 
-    private transient List<Observador> observadores = new ArrayList<>();
-    private String                     ultimoMensajeError = "";
+    private String ultimoMensajeError = "";
 
     public Burako() {
         mazo = new Mazo();
@@ -59,52 +75,40 @@ public class Burako implements IBurako, Serializable {
         gestorTurnos = new GestorTurnos(jugadores.size());
     }
 
-    // ── Observado ─────────────────────────────────────────────────────────────
-
-    @Override
-    public void agregarObservador(Observador observador) {
-        observadores.add(observador);
-    }
-
-    @Override
-    public void notificarObservadores(Eventos evento) {
-        for (Observador obs : observadores) obs.notificar(evento);
-    }
-
     // ── Configuración ─────────────────────────────────────────────────────────
 
     @Override
-    public void setNombres(String nombre1, String nombre2) {
+    public void setNombres(String nombre1, String nombre2) throws RemoteException {
         jugadores.get(0).setNombre(nombre1);
         jugadores.get(1).setNombre(nombre2);
     }
 
     // ── Consultas ─────────────────────────────────────────────────────────────
 
-    @Override public int         getTurnoActual()        { return gestorTurnos.getTurnoActual(); }
-    @Override public EstadoTurno getEstadoTurno()        { return gestorTurnos.getEstado(); }
-    @Override public String      getNombreJugador(int i) { return jugadores.get(i).getNombre(); }
-    @Override public String      getUltimoMensajeError() { return ultimoMensajeError; }
+    @Override public int         getTurnoActual()        throws RemoteException { return gestorTurnos.getTurnoActual(); }
+    @Override public EstadoTurno getEstadoTurno()        throws RemoteException { return gestorTurnos.getEstado(); }
+    @Override public String      getNombreJugador(int i) throws RemoteException { return jugadores.get(i).getNombre(); }
+    @Override public String      getUltimoMensajeError() throws RemoteException { return ultimoMensajeError; }
 
     @Override
-    public boolean puedeTomar(int indice) {
+    public boolean puedeTomar(int indice) throws RemoteException {
         return gestorTurnos.getTurnoActual() == indice
                 && gestorTurnos.getEstado() == EstadoTurno.TOMAR;
     }
 
     @Override
-    public boolean puedeJugar(int indice) {
+    public boolean puedeJugar(int indice) throws RemoteException {
         return gestorTurnos.getTurnoActual() == indice
                 && gestorTurnos.getEstado() == EstadoTurno.JUGAR;
     }
 
-    @Override public List<FichaMostrable> getPozo()         { return pozo.get(); }
-    @Override public List<FichaMostrable> getAtril(int i)   { return jugadores.get(i).getAtril(); }
-    @Override public List<JuegoMostrable> getJuegos(int i)  { return jugadores.get(i).getJugadas(); }
-    @Override public int                  cantJuegos(int i) { return jugadores.get(i).cantJuegos(); }
+    @Override public List<FichaMostrable> getPozo()         throws RemoteException { return pozo.get(); }
+    @Override public List<FichaMostrable> getAtril(int i)   throws RemoteException { return jugadores.get(i).getAtril(); }
+    @Override public List<JuegoMostrable> getJuegos(int i)  throws RemoteException { return jugadores.get(i).getJugadas(); }
+    @Override public int                  cantJuegos(int i) throws RemoteException { return jugadores.get(i).cantJuegos(); }
 
     @Override
-    public List<ResultadoJugador> getResultados() {
+    public List<ResultadoJugador> getResultados() throws RemoteException {
         int quien = gestorTurnos.getTurnoActual();
         List<ResultadoJugador> resultados = new ArrayList<>();
         for (int i = 0; i < jugadores.size(); i++) {
@@ -118,7 +122,7 @@ public class Burako implements IBurako, Serializable {
     // ── ACCIÓN: Robo del mazo ─────────────────────────────────────────────────
 
     @Override
-    public boolean agarrarMazo(int indice) {
+    public boolean agarrarMazo(int indice) throws RemoteException {
         ContextoJugada ctx = contextoBase(indice)
                 .mazoVacio(mazo.estaVacio())
                 .build();
@@ -135,7 +139,7 @@ public class Burako implements IBurako, Serializable {
     // ── ACCIÓN: Robo del pozo ─────────────────────────────────────────────────
 
     @Override
-    public boolean agarrarPozo(int indice) {
+    public boolean agarrarPozo(int indice) throws RemoteException {
         ContextoJugada ctx = contextoBase(indice)
                 .pozoVacio(pozo.estaVacio())
                 .build();
@@ -152,7 +156,7 @@ public class Burako implements IBurako, Serializable {
     // ── ACCIÓN: Bajar juego ───────────────────────────────────────────────────
 
     @Override
-    public void bajarJuego(int indice, int[] posicionesAtril) {
+    public void bajarJuego(int indice, int[] posicionesAtril) throws RemoteException {
         Jugador jugador = jugadores.get(indice);
 
         // Extraer fichas para pasarlas al validador
@@ -188,7 +192,7 @@ public class Burako implements IBurako, Serializable {
     // ── ACCIÓN: Apoyar juego ──────────────────────────────────────────────────
 
     @Override
-    public void apoyarJuego(int posAtril, int posJuego, int indice, int numJuego) {
+    public void apoyarJuego(int posAtril, int posJuego, int indice, int numJuego) throws RemoteException {
         Jugador jugador = jugadores.get(indice);
 
         Ficha ficha;
@@ -228,7 +232,7 @@ public class Burako implements IBurako, Serializable {
     // ── ACCIÓN: Descartar al pozo ─────────────────────────────────────────────
 
     @Override
-    public void agregarPozo(int posAtril, int indice) {
+    public void agregarPozo(int posAtril, int indice) throws RemoteException {
         Jugador jugador = jugadores.get(indice);
 
         // Paso 1: validar que puede descartar (turno + estado JUGAR)
@@ -335,7 +339,7 @@ public class Burako implements IBurako, Serializable {
      * Si el atril quedó vacío tras bajar/apoyar y corresponde toma directa de muerto,
      * la ejecuta. El turno NO avanza en la toma directa.
      */
-    private void procesarTomaMuertaDirecta(Jugador jugador, int indice) {
+    private void procesarTomaMuertaDirecta(Jugador jugador, int indice) throws RemoteException {
         ContextoJugada ctx = contextoConJugador(indice, jugador);
         if (ReglasDeJuego.correspondeTomaMuertaDirecta(ctx)) {
             gestorMuertos.asignarMuerto(jugador);
@@ -359,24 +363,9 @@ public class Burako implements IBurako, Serializable {
         return resultado;
     }
 
-    private boolean fallar(String mensaje, Eventos evento) {
+    private boolean fallar(String mensaje, Eventos evento) throws RemoteException {
         ultimoMensajeError = mensaje != null ? mensaje : "Error desconocido.";
         notificarObservadores(evento);
         return false;
-    }
-
-    // ── Serialización ────────────────────────────────────────────────────────
-
-    /**
-     * Reconstruye la lista de observadores (transient) tras deserializar.
-     * Se restaura vacía a propósito: ningún Observador (Controlador, vistas,
-     * etc.) viaja con el archivo guardado. Quien recupera la partida
-     * (ver persistencia.PersistenciaService / Main) es responsable de
-     * volver a registrar los observadores que correspondan, tal como se
-     * hace al construir una partida nueva.
-     */
-    private void readObject(java.io.ObjectInputStream in) throws java.io.IOException, ClassNotFoundException {
-        in.defaultReadObject();
-        observadores = new ArrayList<>();
     }
 }

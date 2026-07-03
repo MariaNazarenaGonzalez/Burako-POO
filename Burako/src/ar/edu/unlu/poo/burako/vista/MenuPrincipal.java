@@ -1,225 +1,126 @@
 package ar.edu.unlu.poo.burako.vista;
 
 import ar.edu.unlu.poo.burako.controlador.Controlador;
-import ar.edu.unlu.poo.burako.modelo.Burako;
-import ar.edu.unlu.poo.burako.modelo.EstadoTurno;
-import ar.edu.unlu.poo.burako.modelo.IBurako;
-import ar.edu.unlu.poo.burako.persistencia.EntradaRanking;
-import ar.edu.unlu.poo.burako.persistencia.ObservadorPersistencia;
-import ar.edu.unlu.poo.burako.persistencia.PartidaGuardada;
-import ar.edu.unlu.poo.burako.persistencia.PersistenciaService;
-import ar.edu.unlu.poo.burako.persistencia.Usuario;
+import ar.edu.unlu.rmimvc.RMIMVCException;
+import ar.edu.unlu.rmimvc.Util;
+import ar.edu.unlu.rmimvc.cliente.Cliente;
 
 import javax.swing.*;
 import java.awt.*;
-import java.util.List;
-import java.util.UUID;
+import java.rmi.RemoteException;
+import java.util.ArrayList;
 
 /**
- * Menú principal de la aplicación, completamente gráfico (Swing).
- * Es la primera ventana que ve el usuario, antes de que exista cualquier
- * partida. Ofrece cuatro opciones: Nueva partida, Cargar partida,
- * Ver ranking y Salir.
+ * Menú principal de la aplicación CLIENTE, completamente gráfico (Swing).
+ * Es la primera ventana que ve cada jugador, antes de conectarse al
+ * servidor. Ofrece unirse como Jugador 1, como Jugador 2, o salir.
  *
- * Responsabilidad: orquestar la navegación y la construcción de la
- * arquitectura MVC (Burako + Controlador + Vista) a partir de las
- * elecciones del usuario, delegando:
- * - toda regla de juego al modelo (Burako, a través de IBurako),
- * - toda lectura/escritura de datos a {@link PersistenciaService}.
- * No contiene lógica de negocio propia: solo arma diálogos, valida
- * entradas de forma trivial (nombre no vacío) y conecta los objetos ya
- * existentes, exactamente como antes hacía Main.main().
- *
- * NOTA DE DISEÑO: esta clase, al vivir en la capa de presentación,
- * depende de persistencia (para listar partidas/ranking y registrar
- * usuarios) y de controlador/modelo (para construir la partida). Esa
- * dirección de dependencia es la esperada: es la capa de presentación la
- * que orquesta al resto, nunca al revés. El modelo (Burako y
- * colaboradores) sigue sin conocer nada de persistencia, vista ni
- * controlador, tal como en las fases anteriores.
+ * MODIFICADO (Fase 9 - Integración RMIMVC):
+ * - Ya NO crea el modelo (Burako) ni depende de PersistenciaService: el
+ *   servidor (ver servidor.AppServidor) es el único propietario del modelo
+ *   y de la persistencia ("Los clientes únicamente poseen: Vista,
+ *   Controlador, Proxy remoto"). Las opciones "Cargar partida" y
+ *   "Ver ranking" de la Fase 7 se retiraron de este menú porque ambas
+ *   requerían acceso directo a archivos, algo que un cliente ya no puede
+ *   hacer; esa decisión de diseño se documenta en la entrega de esta fase.
+ * - Cada proceso cliente representa a UN jugador (una Vista + un
+ *   Controlador + un proxy remoto), tal como exige la arquitectura
+ *   Cliente/Servidor solicitada: no puede haber un cliente que controle a
+ *   los dos jugadores a la vez, porque eso implicaría acceso directo a un
+ *   modelo que ya no reside en este proceso.
+ * - "Unirse como Jugador 1/2" pide IP/puerto propios y del servidor,
+ *   crea un Controlador (sin argumentos) y usa Cliente.iniciar(controlador)
+ *   de la librería para conectar, obtener el stub remoto del modelo y
+ *   registrarse automáticamente como observador remoto.
+ * - preguntarTipoVista() y crearVista() se conservan textualmente iguales
+ *   a los de la Fase 7 (misma firma, mismo comportamiento): la Vista
+ *   (VistaGrafica/VistaConsola) no sufre ningún cambio.
  */
 public class MenuPrincipal extends JFrame {
 
-    private final PersistenciaService persistencia;
-
-    public MenuPrincipal(PersistenciaService persistencia) {
-        super("Burako");
-        this.persistencia = persistencia;
+    public MenuPrincipal() {
+        super("Burako - Cliente");
         construirVentana();
     }
 
     private void construirVentana() {
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setLayout(new GridLayout(4, 1, 12, 12));
 
-        JButton botonNueva = new JButton("Nueva partida");
-        JButton botonCargar = new JButton("Cargar partida");
-        JButton botonRanking = new JButton("Ver ranking");
+        JButton botonJugador1 = new JButton("Unirse como Jugador 1");
+        JButton botonJugador2 = new JButton("Unirse como Jugador 2");
         JButton botonSalir = new JButton("Salir");
 
-        botonNueva.addActionListener(e -> flujoNuevaPartida());
-        botonCargar.addActionListener(e -> flujoCargarPartida());
-        botonRanking.addActionListener(e -> flujoVerRanking());
+        botonJugador1.addActionListener(e -> flujoConectar(0));
+        botonJugador2.addActionListener(e -> flujoConectar(1));
         botonSalir.addActionListener(e -> System.exit(0));
 
-        JPanel contenido = new JPanel(new GridLayout(4, 1, 12, 12));
+        JPanel contenido = new JPanel(new GridLayout(3, 1, 12, 12));
         contenido.setBorder(BorderFactory.createEmptyBorder(24, 40, 24, 40));
-        contenido.add(botonNueva);
-        contenido.add(botonCargar);
-        contenido.add(botonRanking);
+        contenido.add(botonJugador1);
+        contenido.add(botonJugador2);
         contenido.add(botonSalir);
         setContentPane(contenido);
 
-        setSize(340, 280);
+        setSize(340, 220);
         setLocationRelativeTo(null);
     }
 
-    // ── Opción 1: Nueva partida ─────────────────────────────────────────────
+    // ── Conexión al servidor (RMIMVC) ───────────────────────────────────────
 
-    private void flujoNuevaPartida() {
-        if (!confirmarDosJugadores()) {
+    private void flujoConectar(int indiceJugador) {
+        String ipCliente = pedirIpPropia();
+        if (ipCliente == null) return;
+        int puertoCliente = pedirPuerto("Puerto en el que escuchará este cliente",
+                indiceJugador == 0 ? 9001 : 9002);
+        if (puertoCliente < 0) return;
+
+        String ipServidor = JOptionPane.showInputDialog(this, "IP del servidor:", "Conexión con el servidor",
+                JOptionPane.QUESTION_MESSAGE);
+        if (ipServidor == null || ipServidor.isBlank()) return;
+        int puertoServidor = pedirPuerto("Puerto del servidor", 8888);
+        if (puertoServidor < 0) return;
+
+        boolean usarConsola = preguntarTipoVista();
+
+        Controlador controlador = new Controlador();
+        Cliente cliente = new Cliente(ipCliente, puertoCliente, ipServidor, puertoServidor);
+        try {
+            cliente.iniciar(controlador);
+        } catch (RemoteException | RMIMVCException e) {
+            JOptionPane.showMessageDialog(this, "No se pudo conectar con el servidor:\n" + e.getMessage(),
+                    "Error de conexión", JOptionPane.ERROR_MESSAGE);
             return;
         }
 
-        String nombre1 = pedirNombreJugador("Jugador 1");
-        if (nombre1 == null) {
-            return;
-        }
-        String nombre2 = pedirNombreDistinto(nombre1);
-        if (nombre2 == null) {
-            return;
-        }
-
-        Usuario usuario1 = persistencia.obtenerOcrearUsuario(nombre1);
-        Usuario usuario2 = persistencia.obtenerOcrearUsuario(nombre2);
-
-        Burako burakoConcreto = new Burako();
-        burakoConcreto.setNombres(usuario1.getNombre(), usuario2.getNombre());
-        String idPartida = UUID.randomUUID().toString();
-
-        iniciarPartida(burakoConcreto, usuario1, usuario2, idPartida);
-    }
-
-    /**
-     * Pregunta la cantidad de jugadores. El modelo actual (Burako) solo
-     * soporta 2 jugadores, por lo que si se elige 4 se informa la
-     * limitación y se continúa con 2. No se modifica el modelo para
-     * soportar 4 jugadores en esta fase.
-     * @return true si corresponde continuar con la creación de la partida.
-     */
-    private boolean confirmarDosJugadores() {
-        Object[] opciones = {"2 Jugadores", "4 Jugadores"};
-        int seleccion = JOptionPane.showOptionDialog(
-                this,
-                "¿Cuántos jugadores participarán?",
-                "Nueva partida",
-                JOptionPane.DEFAULT_OPTION,
-                JOptionPane.QUESTION_MESSAGE,
-                null,
-                opciones,
-                opciones[0]
-        );
-        if (seleccion == JOptionPane.CLOSED_OPTION) {
-            return false;
-        }
-        if (seleccion == 1) {
-            JOptionPane.showMessageDialog(
-                    this,
-                    "El modelo actual soporta únicamente 2 jugadores.\nSe continuará con una partida de 2 jugadores.",
-                    "Aviso",
-                    JOptionPane.INFORMATION_MESSAGE
-            );
-        }
-        return true;
-    }
-
-    private String pedirNombreDistinto(String nombreExistente) {
-        while (true) {
-            String nombre = pedirNombreJugador("Jugador 2");
-            if (nombre == null) {
-                return null;
-            }
-            if (nombre.equalsIgnoreCase(nombreExistente)) {
-                JOptionPane.showMessageDialog(this,
-                        "El Jugador 2 debe tener un nombre distinto al Jugador 1.",
-                        "Burako", JOptionPane.WARNING_MESSAGE);
-                continue;
-            }
-            return nombre;
-        }
-    }
-
-    private String pedirNombreJugador(String etiqueta) {
-        while (true) {
-            String nombre = JOptionPane.showInputDialog(
-                    this, "Nombre de " + etiqueta + ":", "Nueva partida", JOptionPane.PLAIN_MESSAGE);
-            if (nombre == null) {
-                return null; // el usuario canceló
-            }
-            nombre = nombre.trim();
-            if (!nombre.isEmpty()) {
-                return nombre;
-            }
-            JOptionPane.showMessageDialog(this, "El nombre no puede estar vacío.",
-                    "Burako", JOptionPane.WARNING_MESSAGE);
-        }
-    }
-
-    // ── Opción 2: Cargar partida ────────────────────────────────────────────
-
-    private void flujoCargarPartida() {
-        List<PartidaGuardada> guardadas = persistencia.listarPartidasGuardadas();
-        if (guardadas.isEmpty()) {
-            JOptionPane.showMessageDialog(this, "No hay partidas guardadas.",
-                    "Cargar partida", JOptionPane.INFORMATION_MESSAGE);
-            return;
-        }
-
-        PartidaGuardada seleccionada = (PartidaGuardada) JOptionPane.showInputDialog(
-                this,
-                "Seleccione una partida guardada:",
-                "Cargar partida",
-                JOptionPane.QUESTION_MESSAGE,
-                null,
-                guardadas.toArray(),
-                guardadas.get(0)
-        );
-        if (seleccionada == null) {
-            return;
-        }
-
-        Usuario usuario1 = persistencia.obtenerOcrearUsuario(seleccionada.getNombreUsuario1());
-        Usuario usuario2 = persistencia.obtenerOcrearUsuario(seleccionada.getNombreUsuario2());
-
-        iniciarPartida(seleccionada.getEstado(), usuario1, usuario2, seleccionada.getId());
-    }
-
-    // ── Construcción común de MVC (nueva o cargada) ─────────────────────────
-
-    /**
-     * Registra la persistencia automática y crea las vistas de ambos
-     * jugadores para el estado de partida dado (nuevo o recuperado).
-     * Idéntico wiring de MVC/Observer usado en fases anteriores.
-     */
-    private void iniciarPartida(Burako burakoConcreto, Usuario usuario1, Usuario usuario2, String idPartida) {
-        IBurako burako = burakoConcreto;
-        burako.agregarObservador(new ObservadorPersistencia(
-                persistencia, burakoConcreto, usuario1, usuario2, idPartida));
-        registrarGuardadoAlCerrar(burakoConcreto, usuario1, usuario2, idPartida);
-
-        boolean consolaJugador1 = preguntarTipoVista(usuario1.getNombre());
-        boolean consolaJugador2 = preguntarTipoVista(usuario2.getNombre());
-        crearVista(burako, 0, consolaJugador1);
-        crearVista(burako, 1, consolaJugador2);
-
+        crearVista(controlador, indiceJugador, usarConsola);
         setVisible(false);
     }
 
-    private boolean preguntarTipoVista(String nombreJugador) {
+    private String pedirIpPropia() {
+        ArrayList<String> ips = Util.getIpDisponibles();
+        return (String) JOptionPane.showInputDialog(this,
+                "IP en la que escuchará este cliente:", "Conexión",
+                JOptionPane.QUESTION_MESSAGE, null, ips.toArray(), ips.isEmpty() ? null : ips.get(0));
+    }
+
+    private int pedirPuerto(String titulo, int porDefecto) {
+        String puerto = JOptionPane.showInputDialog(this, titulo + ":", String.valueOf(porDefecto));
+        if (puerto == null) return -1;
+        try {
+            return Integer.parseInt(puerto.trim());
+        } catch (NumberFormatException e) {
+            JOptionPane.showMessageDialog(this, "Puerto inválido.", "Burako", JOptionPane.WARNING_MESSAGE);
+            return -1;
+        }
+    }
+
+    // ── Construcción de la Vista (idéntico a la Fase 7) ─────────────────────
+
+    private boolean preguntarTipoVista() {
         Object[] opciones = {"Swing", "Consola"};
         int seleccion = JOptionPane.showOptionDialog(
                 this,
-                "¿Qué tipo de vista usará " + nombreJugador + "?",
+                "¿Qué tipo de vista usarás?",
                 "Selección de vista",
                 JOptionPane.DEFAULT_OPTION,
                 JOptionPane.QUESTION_MESSAGE,
@@ -230,9 +131,7 @@ public class MenuPrincipal extends JFrame {
         return seleccion == 1;
     }
 
-    private void crearVista(IBurako burako, int jugador, boolean usarConsola) {
-        var controlador = new Controlador(burako);
-        burako.agregarObservador(controlador);
+    private void crearVista(Controlador controlador, int jugador, boolean usarConsola) {
         if (usarConsola) {
             var vista = new VistaConsola(controlador, jugador);
             controlador.setVista(vista);
@@ -242,21 +141,5 @@ public class MenuPrincipal extends JFrame {
             controlador.setVista(vista);
             vista.setVisible(true);
         }
-    }
-
-    /** Guarda el estado de la partida al cerrar la aplicación, si todavía no terminó. */
-    private void registrarGuardadoAlCerrar(Burako burako, Usuario u1, Usuario u2, String idPartida) {
-        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            if (burako.getEstadoTurno() != EstadoTurno.PARTIDA_TERMINADA) {
-                persistencia.guardarPartida(idPartida, burako, u1, u2);
-            }
-        }));
-    }
-
-    // ── Opción 3: Ver ranking ────────────────────────────────────────────────
-
-    private void flujoVerRanking() {
-        List<EntradaRanking> ranking = persistencia.obtenerRanking();
-        new VistaRanking(this, ranking).setVisible(true);
     }
 }

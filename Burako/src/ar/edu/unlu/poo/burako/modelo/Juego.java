@@ -1,6 +1,5 @@
 package ar.edu.unlu.poo.burako.modelo;
 
-import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -22,7 +21,7 @@ import java.util.List;
  * bajadas a la mesa forman parte del estado guardable de una partida
  * (es referenciado desde Jugador).
  */
-public class Juego implements JuegoMostrable, Serializable {
+public class Juego implements JuegoMostrable {
 
     private static final long serialVersionUID = 1L;
 

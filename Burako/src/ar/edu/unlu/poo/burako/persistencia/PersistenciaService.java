@@ -4,6 +4,7 @@ import ar.edu.unlu.poo.burako.modelo.Burako;
 import ar.edu.unlu.poo.burako.modelo.ResultadoJugador;
 
 import java.io.File;
+import java.rmi.RemoteException;
 import java.util.List;
 import java.util.UUID;
 
@@ -99,8 +100,15 @@ public class PersistenciaService {
      * {@code Eventos.partida_terminada}) a las estadísticas de ambos
      * usuarios y al ranking, y elimina el guardado intermedio de la
      * partida, ya que dejó de estar "en curso".
+     *
+     * MODIFICADO (Fase 9 - RMIMVC): declara "throws RemoteException" porque
+     * internamente llama a estado.getResultados(), método de IBurako que
+     * ahora puede lanzar esa excepción. Esta clase se sigue ejecutando
+     * exclusivamente en el servidor (la llama ObservadorPersistencia,
+     * registrado únicamente allí), por lo que no hay ningún cambio de
+     * responsabilidad: sigue siendo persistencia server-side pura.
      */
-    public void finalizarPartida(Burako estado, Usuario usuario1, Usuario usuario2, String idPartidaGuardada) {
+    public void finalizarPartida(Burako estado, Usuario usuario1, Usuario usuario2, String idPartidaGuardada) throws RemoteException {
         List<ResultadoJugador> resultados = estado.getResultados();
         aplicarResultado(usuario1, resultados.get(0));
         aplicarResultado(usuario2, resultados.get(1));
