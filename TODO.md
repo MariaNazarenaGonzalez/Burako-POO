@@ -1,9 +1,0 @@
-# Lista de Tareas Pendientes
-
-1.  Corregir agregarPozo() y manejo de errores.
-2.  Mover control de turnos al modelo.
-3.  Implementar muerto.
-4.  Implementar cierre de mano.
-5.  Implementar puntaje.
-6.  Corregir validaciones de Juego.
-7.  Recién después adaptar las vistas.
