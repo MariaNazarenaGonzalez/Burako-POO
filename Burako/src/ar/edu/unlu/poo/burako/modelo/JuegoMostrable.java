@@ -13,8 +13,8 @@ import java.util.List;
  */
 public interface JuegoMostrable extends Serializable {
     /** Retorna las fichas que componen este juego, en orden. */
-    List<FichaMostrable> getFichas();
+    public List<FichaMostrable> getFichas();
 
     /** Retorna el tipo clasificatorio de este juego. */
-    TipoJuego getTipo();
+    public TipoJuego getTipo();
 }

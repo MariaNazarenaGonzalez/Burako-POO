@@ -34,7 +34,7 @@ public class Jugador implements Serializable {
     private boolean           yaTomoMuerto;
     private String            nombre;
 
-    Jugador(List<Ficha> fichasIniciales) {
+    public Jugador(List<Ficha> fichasIniciales) {
         this.atril        = new Atril(fichasIniciales);
         this.juegos       = new ArrayList<>();
         this.yaTomoMuerto = false;
@@ -51,21 +51,21 @@ public class Jugador implements Serializable {
     public boolean yaTomoMuerto()       { return yaTomoMuerto; }
 
     /** Invocado por GestorMuertos al entregar el muerto. */
-    void marcarMuertoTomado()           { this.yaTomoMuerto = true; }
+    public void marcarMuertoTomado()           { this.yaTomoMuerto = true; }
 
     /** Compatibilidad con tests existentes. */
     public void setYaTomoMuerto(boolean v) { this.yaTomoMuerto = v; }
 
     // ── Atril ─────────────────────────────────────────────────────────────────
 
-    void agregarAtril(List<Ficha> nuevas) { atril.agregar(nuevas); }
-    void agregarAtril(Ficha ficha)        { atril.agregar(ficha); }
+    public void agregarAtril(List<Ficha> nuevas) { atril.agregar(nuevas); }
+    public void agregarAtril(Ficha ficha)        { atril.agregar(ficha); }
 
     /**
      * Retorna la ficha en la posición 1-based sin removerla.
      * @throws Exception si la posición no existe.
      */
-    Ficha verAtril(int pos) throws Exception {
+    public Ficha verAtril(int pos) throws Exception {
         return atril.ver(new int[]{pos}).get(0);
     }
 
@@ -73,7 +73,7 @@ public class Jugador implements Serializable {
      * Remueve la ficha dada del atril.
      * @throws Exception si la ficha no está en el atril.
      */
-    void sacarAtril(Ficha ficha) throws Exception {
+    public void sacarAtril(Ficha ficha) throws Exception {
         atril.sacar(List.of(ficha));
     }
 
@@ -83,7 +83,7 @@ public class Jugador implements Serializable {
     }
 
     /** Acceso tipado sin cast, para ReglasDeJuego.calcularPuntaje(). */
-    List<Ficha> getAtrilInterno() {
+    public List<Ficha> getAtrilInterno() {
         List<Ficha> copia = new ArrayList<>();
         for (FichaMostrable fm : atril.get()) {
             copia.add((Ficha) fm); // seguro: Atril solo almacena Ficha
@@ -91,7 +91,7 @@ public class Jugador implements Serializable {
         return copia;
     }
 
-    boolean atrilVacio() { return atril.estaVacio(); }
+    public boolean atrilVacio() { return atril.estaVacio(); }
 
     // ── Juegos ────────────────────────────────────────────────────────────────
 
@@ -100,7 +100,7 @@ public class Jugador implements Serializable {
      * Precondición: ReglasDeJuego.validarBajarJuego() aprobó la operación.
      * @throws Exception si hay error estructural (posición inválida, combinación inválida).
      */
-    void bajarJuego(int[] posicionesAtril) throws Exception {
+    public void bajarJuego(int[] posicionesAtril) throws Exception {
         List<Ficha> seleccionadas = atril.ver(posicionesAtril);
         Juego nuevo = new Juego(seleccionadas);
         atril.sacar(seleccionadas);
@@ -113,7 +113,7 @@ public class Jugador implements Serializable {
      * Precondición: ReglasDeJuego.validarApoyarJuego() aprobó la operación.
      * @throws Exception si algún índice es inválido estructuralmente.
      */
-    void apoyarJuego(int posAtril, int posEnJuego, int numJuego) throws Exception {
+    public void apoyarJuego(int posAtril, int posEnJuego, int numJuego) throws Exception {
         if (numJuego < 1 || numJuego > juegos.size()) {
             throw new Exception("El juego " + numJuego + " no existe (total: " + juegos.size() + ").");
         }
@@ -157,7 +157,7 @@ public class Jugador implements Serializable {
      * Retorna las fichas internas del juego en la posición numJuego (1-based).
      * Usado por Burako para construir el ContextoJugada al apoyar.
      */
-    List<Ficha> getFichasDeJuego(int numJuego) {
+    public List<Ficha> getFichasDeJuego(int numJuego) {
         if (numJuego < 1 || numJuego > juegos.size()) return List.of();
         return juegos.get(numJuego - 1).getFichasInternas();
     }
@@ -166,7 +166,7 @@ public class Jugador implements Serializable {
      * Retorna el TipoJuego del juego en la posición numJuego (1-based).
      * Usado por Burako para construir el ContextoJugada al apoyar.
      */
-    TipoJuego getTipoDeJuego(int numJuego) {
+    public TipoJuego getTipoDeJuego(int numJuego) {
         if (numJuego < 1 || numJuego > juegos.size()) return null;
         return juegos.get(numJuego - 1).getTipo();
     }

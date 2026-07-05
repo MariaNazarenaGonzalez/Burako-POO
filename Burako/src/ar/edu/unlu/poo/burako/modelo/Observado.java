@@ -15,10 +15,10 @@ public interface Observado {
     /**
      * Registra un observador que recibirá notificaciones de cambios de estado.
      */
-    void agregarObservador(Observador observador);
+    public void agregarObservador(Observador observador);
 
     /**
      * Notifica a todos los observadores registrados de un evento.
      */
-    void notificarObservadores(Eventos evento);
+    public void notificarObservadores(Eventos evento);
 }

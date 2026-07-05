@@ -18,5 +18,5 @@ public interface Observador {
      *
      * @param evento el evento ocurrido
      */
-    void notificar(Eventos evento);
+    public void notificar(Eventos evento);
 }

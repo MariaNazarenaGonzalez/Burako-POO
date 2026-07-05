@@ -24,7 +24,7 @@ class GestorTurnos implements Serializable {
     private EstadoTurno estado;
     private final int   cantidadJugadores;
 
-    GestorTurnos(int cantidadJugadores) {
+    public GestorTurnos(int cantidadJugadores) {
         this.cantidadJugadores = cantidadJugadores;
         this.turnoActual       = 0;
         this.estado            = EstadoTurno.TOMAR;
@@ -32,29 +32,29 @@ class GestorTurnos implements Serializable {
 
     // ── Consultas ──────────────────────────────────────────────────────────────
 
-    int getTurnoActual() {
+    public int getTurnoActual() {
         return turnoActual;
     }
 
-    EstadoTurno getEstado() {
+    public EstadoTurno getEstado() {
         return estado;
     }
 
     // ── Transiciones (solo las invoca Burako, tras validar con ReglasDeJuego) ──
 
     /** TOMAR → JUGAR: el jugador tomó su ficha. */
-    void marcarFichaTomada() {
+    public void marcarFichaTomada() {
         estado = EstadoTurno.JUGAR;
     }
 
     /** JUGAR → TOMAR (del siguiente jugador): fin del turno actual. */
-    void avanzarTurno() {
+    public void avanzarTurno() {
         turnoActual = (turnoActual + 1) % cantidadJugadores;
         estado      = EstadoTurno.TOMAR;
     }
 
     /** → PARTIDA_TERMINADA: la partida finalizó. */
-    void finalizarPartida() {
+    public void finalizarPartida() {
         estado = EstadoTurno.PARTIDA_TERMINADA;
     }
 }

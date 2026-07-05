@@ -25,7 +25,7 @@ class GestorMuertos implements Serializable {
 
     private final Deque<Muerto> muertos;
 
-    GestorMuertos(List<Ficha> fichasMuerto1, List<Ficha> fichasMuerto2) {
+    public GestorMuertos(List<Ficha> fichasMuerto1, List<Ficha> fichasMuerto2) {
         muertos = new ArrayDeque<>();
         muertos.add(new Muerto(fichasMuerto1));
         muertos.add(new Muerto(fichasMuerto2));
@@ -36,14 +36,14 @@ class GestorMuertos implements Serializable {
      * Precondición: hayMuertosDisponibles() == true.
      * La precondición es verificada por ReglasDeJuego antes de esta llamada.
      */
-    void asignarMuerto(Jugador jugador) {
+    public void asignarMuerto(Jugador jugador) {
         Muerto siguiente = muertos.poll();
         jugador.agregarAtril(siguiente.tomar());
         jugador.marcarMuertoTomado();
     }
 
     /** Retorna true si hay al menos un muerto sin tomar. */
-    boolean hayMuertosDisponibles() {
+    public boolean hayMuertosDisponibles() {
         return !muertos.isEmpty();
     }
 }
