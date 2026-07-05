@@ -38,51 +38,70 @@ public interface IBurako extends IObservableRemoto {
     // ── Configuración ──────────────────────────────────────────────────────────
 
     /** Asigna los nombres de los dos jugadores antes de comenzar. */
-    public void setNombres(String nombreJugador1, String nombreJugador2) throws RemoteException;
+    void setNombres(String nombreJugador1, String nombreJugador2) throws RemoteException;
+
+    /**
+     * Asigna los nombres de todos los jugadores de la partida (2 o 4),
+     * en orden de índice. Si la lista es más corta que la cantidad real
+     * de jugadores, los índices restantes conservan su nombre por defecto.
+     *
+     * NUEVO (Fase 10 - Soporte 2 o 4 jugadores).
+     */
+    void setNombres(List<String> nombres) throws RemoteException;
+
+    /** Retorna la cantidad de jugadores de esta partida (2 o 4). NUEVO (Fase 10). */
+    int getCantidadJugadores() throws RemoteException;
+
+    /**
+     * Retorna el índice de equipo (0 o 1) del jugador dado. Con 2 jugadores,
+     * cada uno es su propio equipo. Con 4, los jugadores 0 y 2 comparten
+     * equipo, y 1 y 3 comparten el otro. NUEVO (Fase 10).
+     */
+    int getEquipo(int indiceJugador) throws RemoteException;
 
     // ── Consultas de estado ────────────────────────────────────────────────────
 
     /** Retorna el índice (0-based) del jugador cuyo turno está activo. */
-    public int getTurnoActual() throws RemoteException;
+    int getTurnoActual() throws RemoteException;
 
     /** Retorna el estado actual del turno (TOMAR, JUGAR, PARTIDA_TERMINADA). */
-    public EstadoTurno getEstadoTurno() throws RemoteException;
+    EstadoTurno getEstadoTurno() throws RemoteException;
 
     /** Retorna true si el jugador {@code indice} puede tomar del mazo o del pozo. */
-    public boolean puedeTomar(int indice) throws RemoteException;
+    boolean puedeTomar(int indice) throws RemoteException;
 
     /** Retorna true si el jugador {@code indice} puede bajar, apoyar o descartar. */
-    public boolean puedeJugar(int indice) throws RemoteException;
+    boolean puedeJugar(int indice) throws RemoteException;
 
     /** Retorna el nombre del jugador {@code indice}. */
-    public String getNombreJugador(int indice) throws RemoteException;
+    String getNombreJugador(int indice) throws RemoteException;
 
     /**
      * Retorna el último mensaje de error generado por una operación fallida.
      * La Vista lo consulta después de recibir un evento _NO_exitoso.
      * Nunca retorna null; retorna cadena vacía si no hay error pendiente.
      */
-    public String getUltimoMensajeError() throws RemoteException;
+    String getUltimoMensajeError() throws RemoteException;
 
     // ── Consultas de datos de juego ────────────────────────────────────────────
 
     /** Retorna las fichas visibles del pozo. */
-    public List<FichaMostrable> getPozo() throws RemoteException;
+    List<FichaMostrable> getPozo() throws RemoteException;
 
     /** Retorna las fichas del atril del jugador {@code indice}. */
-    public List<FichaMostrable> getAtril(int indice) throws RemoteException;
+    List<FichaMostrable> getAtril(int indice) throws RemoteException;
 
     /** Retorna los juegos bajados por el jugador {@code indice}. */
-    public List<JuegoMostrable> getJuegos(int indice) throws RemoteException;
+    List<JuegoMostrable> getJuegos(int indice) throws RemoteException;
 
     /** Retorna la cantidad de juegos bajados por el jugador {@code indice}. */
-    public int cantJuegos(int indice) throws RemoteException;
+    int cantJuegos(int indice) throws RemoteException;
 
     /**
      * Retorna los resultados finales de todos los jugadores.
      * Solo disponible cuando getEstadoTurno() == PARTIDA_TERMINADA.
      */
-    public List<ResultadoJugador> getResultados() throws RemoteException;
+    List<ResultadoJugador> getResultados() throws RemoteException;
 
     // ── Acciones del turno ─────────────────────────────────────────────────────
 
@@ -90,30 +109,30 @@ public interface IBurako extends IObservableRemoto {
      * El jugador {@code indice} toma una ficha del mazo.
      * @return true si la operación fue exitosa.
      */
-    public boolean agarrarMazo(int indice) throws RemoteException;
+    boolean agarrarMazo(int indice) throws RemoteException;
 
     /**
      * El jugador {@code indice} toma todas las fichas del pozo.
      * @return true si la operación fue exitosa.
      */
-    public boolean agarrarPozo(int indice) throws RemoteException;
+    boolean agarrarPozo(int indice) throws RemoteException;
 
     /**
      * El jugador {@code indice} baja un juego nuevo con las fichas
      * en las posiciones indicadas (1-based) de su atril.
      */
-    public void bajarJuego(int indice, int[] posicionesAtril) throws RemoteException;
+    void bajarJuego(int indice, int[] posicionesAtril) throws RemoteException;
 
     /**
      * El jugador {@code indice} apoya la ficha en la posición {@code posAtril} (1-based)
      * de su atril sobre el juego número {@code numJuego} (1-based) en la posición
      * {@code posJuego} (1-based) de ese juego.
      */
-    public void apoyarJuego(int posAtril, int posJuego, int indice, int numJuego) throws RemoteException;
+    void apoyarJuego(int posAtril, int posJuego, int indice, int numJuego) throws RemoteException;
 
     /**
      * El jugador {@code indice} descarta la ficha en la posición {@code posAtril} (1-based)
      * al pozo, cediendo el turno o cerrando la partida si corresponde.
      */
-    public void agregarPozo(int posAtril, int indice) throws RemoteException;
+    void agregarPozo(int posAtril, int indice) throws RemoteException;
 }

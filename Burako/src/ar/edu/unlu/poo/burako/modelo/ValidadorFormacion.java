@@ -25,7 +25,7 @@ final class ValidadorFormacion {
      * Determina el TipoJuego de una lista de fichas.
      * @throws Exception si la combinación no es válida o la cantidad está fuera de rango.
      */
-    public static TipoJuego clasificar(List<Ficha> fichas) throws Exception {
+    static TipoJuego clasificar(List<Ficha> fichas) throws Exception {
         int cant = fichas.size();
         if (cant < 3) {
             throw new Exception("Se necesitan al menos 3 fichas para formar un juego (se enviaron " + cant + ").");
@@ -59,7 +59,7 @@ final class ValidadorFormacion {
     /**
      * Reclasifica tras agregar una ficha cuando el total ya llega a 7+.
      */
-    public static TipoJuego reclasificarComoCanasta(List<Ficha> fichas) {
+    static TipoJuego reclasificarComoCanasta(List<Ficha> fichas) {
         if (esEscalera(fichas)) {
             return esPuraEscalera(fichas) ? TipoJuego.CanastaPuraEscalera
                                           : TipoJuego.CanastaImpuraEscalera;
@@ -75,7 +75,7 @@ final class ValidadorFormacion {
      * Verifica si {@code ficha} puede agregarse en la posición {@code pos} (0-based)
      * del juego cuyo contenido y tipo se pasan.
      */
-    public static boolean esAgregadoValido(List<Ficha> fichas, TipoJuego tipo, Ficha ficha, int pos) {
+    static boolean esAgregadoValido(List<Ficha> fichas, TipoJuego tipo, Ficha ficha, int pos) {
         boolean esEscaleraDestino =
                 tipo == TipoJuego.Escalera
                 || tipo == TipoJuego.CanastaImpuraEscalera
@@ -92,7 +92,7 @@ final class ValidadorFormacion {
 
     // ── Escalera ───────────────────────────────────────────────────────────────
 
-    public static boolean esEscalera(List<Ficha> fichas) {
+    static boolean esEscalera(List<Ficha> fichas) {
         if (fichas.isEmpty()) return false;
 
         Ficha primera = fichas.get(0);
@@ -130,7 +130,7 @@ final class ValidadorFormacion {
         return true;
     }
 
-    public static boolean esPierna(List<Ficha> fichas) {
+    static boolean esPierna(List<Ficha> fichas) {
         if (fichas.isEmpty()) return false;
 
         Ficha primera = fichas.get(0);

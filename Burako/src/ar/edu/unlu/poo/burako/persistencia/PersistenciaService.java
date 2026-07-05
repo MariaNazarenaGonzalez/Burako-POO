@@ -62,8 +62,16 @@ public class PersistenciaService {
      * @return el id bajo el cual quedó guardada la partida.
      */
     public String guardarPartida(String idPartida, Burako estado, Usuario usuario1, Usuario usuario2) {
+        return guardarPartida(idPartida, estado, List.of(usuario1, usuario2));
+    }
+
+    /**
+     * Guarda (o sobrescribe) el estado completo de una partida de 2 o 4
+     * usuarios. NUEVO (Fase 10 - Soporte 2 o 4 jugadores).
+     */
+    public String guardarPartida(String idPartida, Burako estado, List<Usuario> usuarios) {
         String id = idPartida != null ? idPartida : UUID.randomUUID().toString();
-        repositorioPartidas.guardar(new PartidaGuardada(id, usuario1, usuario2, estado));
+        repositorioPartidas.guardar(new PartidaGuardada(id, usuarios, estado));
         return id;
     }
 
@@ -109,12 +117,23 @@ public class PersistenciaService {
      * responsabilidad: sigue siendo persistencia server-side pura.
      */
     public void finalizarPartida(Burako estado, Usuario usuario1, Usuario usuario2, String idPartidaGuardada) throws RemoteException {
-        List<ResultadoJugador> resultados = estado.getResultados();
-        aplicarResultado(usuario1, resultados.get(0));
-        aplicarResultado(usuario2, resultados.get(1));
+        finalizarPartida(estado, List.of(usuario1, usuario2), idPartidaGuardada);
+    }
 
-        repositorioRanking.actualizar(usuario1);
-        repositorioRanking.actualizar(usuario2);
+    /**
+     * Aplica los resultados finales de una partida de 2 o 4 usuarios.
+     * NUEVO (Fase 10 - Soporte 2 o 4 jugadores): itera sobre la lista
+     * completa de usuarios en lugar de asumir exactamente 2, aplicando a
+     * cada uno el ResultadoJugador correspondiente a su mismo índice.
+     */
+    public void finalizarPartida(Burako estado, List<Usuario> usuarios, String idPartidaGuardada) throws RemoteException {
+        List<ResultadoJugador> resultados = estado.getResultados();
+        for (int i = 0; i < usuarios.size() && i < resultados.size(); i++) {
+            aplicarResultado(usuarios.get(i), resultados.get(i));
+        }
+        for (Usuario usuario : usuarios) {
+            repositorioRanking.actualizar(usuario);
+        }
 
         if (idPartidaGuardada != null) {
             repositorioPartidas.eliminar(idPartidaGuardada);

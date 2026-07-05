@@ -35,7 +35,7 @@ final class CalculadorPuntaje {
      * @param corto        true si este jugador fue quien cerró la partida
      * @param tomoMuerto   true si el jugador tomó su muerto durante la partida
      */
-    public static int calcular(List<Juego> juegos, List<Ficha> atrilFichas,
+    static int calcular(List<Juego> juegos, List<Ficha> atrilFichas,
                         boolean tieneCanasta, boolean corto, boolean tomoMuerto) {
 
         int puntosJuegos = juegos.stream().mapToInt(Juego::calcularPuntaje).sum();

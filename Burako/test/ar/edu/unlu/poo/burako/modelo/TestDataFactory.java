@@ -115,10 +115,28 @@ public final class TestDataFactory {
         return new Burako();
     }
 
+    /**
+     * Crea una partida nueva de 2 o 4 jugadores, sin nombres asignados.
+     * NUEVO (Fase 10 - Soporte 2 o 4 jugadores).
+     */
+    public static Burako crearBurako(int cantidadJugadores) {
+        return new Burako(cantidadJugadores);
+    }
+
     /** Crea una partida nueva lista para jugar, con nombres asignados. */
     public static Burako crearPartidaNueva() throws RemoteException {
         Burako burako = new Burako();
         burako.setNombres("Jugador 1", "Jugador 2");
+        return burako;
+    }
+
+    /**
+     * Crea una partida de 4 jugadores (2 equipos de 2) lista para jugar,
+     * con nombres genéricos asignados. NUEVO (Fase 10).
+     */
+    public static Burako crearPartidaDeEquipos() throws RemoteException {
+        Burako burako = new Burako(4);
+        burako.setNombres(List.of("Jugador 1", "Jugador 2", "Jugador 3", "Jugador 4"));
         return burako;
     }
 

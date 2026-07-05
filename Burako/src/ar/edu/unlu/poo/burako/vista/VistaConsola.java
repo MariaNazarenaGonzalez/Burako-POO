@@ -294,12 +294,28 @@ public class VistaConsola extends JFrame implements VistaJuego {
 
     // ── VistaJuego ────────────────────────────────────────────────────────────
 
+    /**
+     * MODIFICADO (Fase 10 - Soporte 2 o 4 jugadores): antes calculaba un
+     * único "rival" con (miTurno + 1) % 2, válido solo para 2 jugadores.
+     * Ahora itera sobre TODOS los demás jugadores (1 con 2, 3 con 4),
+     * mostrando el tablero de cada uno por separado y, con 4 jugadores,
+     * indicando si es compañero de equipo o rival.
+     */
     @Override
     public void mostrarMesa() {
-        int rival = (miTurno + 1) % 2;
-        println("\tLa mesa se ve así:\nEl lado de " + getNombre(rival));
-        mostrarJuegos(rival);
-        print("\n");
+        println("\tLa mesa se ve así:");
+        int cantidad = controlador.getCantidadJugadores();
+        int miEquipo = controlador.getEquipo(miTurno);
+        for (int i = 0; i < cantidad; i++) {
+            if (i == miTurno) continue;
+            String etiqueta = "El lado de " + getNombre(i);
+            if (cantidad > 2) {
+                etiqueta += (controlador.getEquipo(i) == miEquipo) ? " (compañero)" : " (rival)";
+            }
+            println(etiqueta);
+            mostrarJuegos(i);
+            print("\n");
+        }
         println("El lado de " + getNombre(miTurno) + " (tú)");
         mostrarJuegos(miTurno);
         print("\n");

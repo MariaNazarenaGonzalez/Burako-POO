@@ -28,29 +28,26 @@ import java.util.List;
  *   completo de una partida usando Serialización Java (ver paquete
  *   persistencia). No se altera ningún comportamiento ni regla del juego.
  *
- * MODIFICADO (Fase 9 - Integración RMIMVC):
- * - Extiende ObservableRemoto (librería RMIMVC de la cátedra) en lugar de
- *   gestionar la lista de observadores manualmente. Es el cambio obligatorio
- *   documentado en el README de la librería: "Hacer que el modelo herede de
- *   ObservableRemoto. Eliminar el comportamiento de gestión de observables
- *   de la clase (ya lo gestiona la librería)". agregarObservador() y
- *   notificarObservadores(Object) quedan heredados; ya no se declaran aquí.
- * - Ya no hace falta el campo transient "observadores" ni el readObject()
- *   personalizado de la Fase 6: ObservableRemoto NO implementa Serializable,
- *   por lo que Java, al deserializar, invoca automáticamente su constructor
- *   sin argumentos (que inicializa su lista de observadores vacía) para
- *   reconstruir esa porción del objeto. El resultado es idéntico al
- *   mecanismo anterior (observadores vacíos tras recuperar una partida)
- *   pero ahora provisto por la librería en vez de código propio.
- * - Cada método de IBurako ahora declara "throws RemoteException"; Burako,
- *   al implementarlos, propaga la misma firma. Ningún método cambia su
- *   lógica interna: las llamadas a notificarObservadores(Eventos) siguen
- *   siendo textualmente idénticas (Eventos es un Object válido para el
- *   notificarObservadores(Object) heredado).
+ * MODIFICADO (Fase 10 - Soporte 2 o 4 jugadores):
+ * - Nuevo constructor Burako(int cantidadJugadores) admite 2 o 4. El
+ *   constructor sin argumentos se conserva EXACTAMENTE igual (this(2)),
+ *   por lo que todo el código y los 55 tests existentes que ya usaban
+ *   "new Burako()" siguen funcionando sin cambios.
+ * - Con 4 jugadores se juega en 2 equipos de 2 (jugadores 0 y 2 forman un
+ *   equipo; 1 y 3 forman el otro — "sentados cruzados", orden de turno
+ *   0,1,2,3 sin alterar GestorTurnos, que ya era genérico). Los equipos
+ *   comparten ÚNICAMENTE el muerto: cada equipo tiene UN muerto (no uno
+ *   por jugador), y si un integrante lo toma, también se marca a su
+ *   compañero como "ya tomó muerto" a efectos de puntaje, ya que
+ *   físicamente es un solo muerto compartido. Todo lo demás (atril,
+ *   juegos bajados, puntaje individual) sigue siendo exclusivo de cada
+ *   jugador ("el resto es individual").
+ * - Con 4 jugadores se reparten 11 fichas de mano (en vez de 12) para no
+ *   agotar el mazo: 4×11 + 2×11(muertos) = 66 de 106 fichas repartidas.
  */
 public class Burako extends ObservableRemoto implements IBurako, Serializable {
 
-    private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 2L;
 
     private final List<Jugador> jugadores;
     private final Mazo          mazo;
@@ -60,7 +57,20 @@ public class Burako extends ObservableRemoto implements IBurako, Serializable {
 
     private String ultimoMensajeError = "";
 
+    /** Partida de 2 jugadores (comportamiento original, sin cambios). */
     public Burako() {
+        this(2);
+    }
+
+    /**
+     * @param cantidadJugadores 2 o 4. Con 4, los jugadores se agrupan en
+     *                          2 equipos de 2 que comparten únicamente el muerto.
+     */
+    public Burako(int cantidadJugadores) {
+        if (cantidadJugadores != 2 && cantidadJugadores != 4) {
+            throw new IllegalArgumentException("Burako solo admite 2 o 4 jugadores.");
+        }
+
         mazo = new Mazo();
         pozo = new Pozo();
 
@@ -68,11 +78,24 @@ public class Burako extends ObservableRemoto implements IBurako, Serializable {
         List<Ficha> fichasMuerto2 = mazo.sacar(11);
         gestorMuertos = new GestorMuertos(fichasMuerto1, fichasMuerto2);
 
+        int fichasPorMano = cantidadJugadores == 2 ? 12 : 11;
         jugadores = new ArrayList<>();
-        jugadores.add(new Jugador(mazo.sacar(12)));
-        jugadores.add(new Jugador(mazo.sacar(12)));
+        for (int i = 0; i < cantidadJugadores; i++) {
+            jugadores.add(new Jugador(mazo.sacar(fichasPorMano)));
+        }
 
         gestorTurnos = new GestorTurnos(jugadores.size());
+    }
+
+    /**
+     * Retorna el índice de equipo (0 o 1) del jugador dado. Con 2 jugadores,
+     * cada uno es su propio equipo (0 y 1 respectivamente): el
+     * comportamiento de toma de muerto queda idéntico al de fases
+     * anteriores. Con 4 jugadores, 0 y 2 comparten equipo 0; 1 y 3
+     * comparten equipo 1.
+     */
+    private int equipoDe(int indiceJugador) {
+        return jugadores.size() == 2 ? indiceJugador : indiceJugador % 2;
     }
 
     // ── Configuración ─────────────────────────────────────────────────────────
@@ -83,12 +106,21 @@ public class Burako extends ObservableRemoto implements IBurako, Serializable {
         jugadores.get(1).setNombre(nombre2);
     }
 
+    @Override
+    public void setNombres(List<String> nombres) throws RemoteException {
+        for (int i = 0; i < nombres.size() && i < jugadores.size(); i++) {
+            jugadores.get(i).setNombre(nombres.get(i));
+        }
+    }
+
     // ── Consultas ─────────────────────────────────────────────────────────────
 
     @Override public int         getTurnoActual()        throws RemoteException { return gestorTurnos.getTurnoActual(); }
     @Override public EstadoTurno getEstadoTurno()        throws RemoteException { return gestorTurnos.getEstado(); }
     @Override public String      getNombreJugador(int i) throws RemoteException { return jugadores.get(i).getNombre(); }
     @Override public String      getUltimoMensajeError() throws RemoteException { return ultimoMensajeError; }
+    @Override public int         getCantidadJugadores()  throws RemoteException { return jugadores.size(); }
+    @Override public int         getEquipo(int indice)   throws RemoteException { return equipoDe(indice); }
 
     @Override
     public boolean puedeTomar(int indice) throws RemoteException {
@@ -110,11 +142,14 @@ public class Burako extends ObservableRemoto implements IBurako, Serializable {
     @Override
     public List<ResultadoJugador> getResultados() throws RemoteException {
         int quien = gestorTurnos.getTurnoActual();
+        int equipoGanador = equipoDe(quien);
         List<ResultadoJugador> resultados = new ArrayList<>();
         for (int i = 0; i < jugadores.size(); i++) {
-            Jugador j   = jugadores.get(i);
-            int puntaje = j.calcularPuntaje(i == quien);
-            resultados.add(new ResultadoJugador(j.getNombre(), puntaje, i == quien));
+            Jugador j = jugadores.get(i);
+            boolean corto = (i == quien);          // el bono de +100 por cortar es individual
+            boolean gano  = equipoDe(i) == equipoGanador; // ganar la partida es del equipo completo
+            int puntaje = j.calcularPuntaje(corto);
+            resultados.add(new ResultadoJugador(j.getNombre(), puntaje, gano));
         }
         return resultados;
     }
@@ -268,7 +303,8 @@ public class Burako extends ObservableRemoto implements IBurako, Serializable {
             }
 
             if (ReglasDeJuego.correspondeTomaMuertoIndirecta(ctxFinal)) {
-                gestorMuertos.asignarMuerto(jugador);
+                gestorMuertos.asignarMuerto(jugador, equipoDe(indice));
+                marcarMuertoTomadoEnElEquipo(indice);
                 gestorTurnos.avanzarTurno();
                 notificarObservadores(Eventos.agregarPozo_exitoso);
                 notificarObservadores(Eventos.tomarMuerto_exitoso);
@@ -342,8 +378,28 @@ public class Burako extends ObservableRemoto implements IBurako, Serializable {
     private void procesarTomaMuertaDirecta(Jugador jugador, int indice) throws RemoteException {
         ContextoJugada ctx = contextoConJugador(indice, jugador);
         if (ReglasDeJuego.correspondeTomaMuertaDirecta(ctx)) {
-            gestorMuertos.asignarMuerto(jugador);
+            gestorMuertos.asignarMuerto(jugador, equipoDe(indice));
+            marcarMuertoTomadoEnElEquipo(indice);
             notificarObservadores(Eventos.tomarMuerto_exitoso);
+        }
+    }
+
+    /**
+     * Marca a TODOS los jugadores del mismo equipo que {@code indice} como
+     * "ya tomó muerto" a efectos de puntaje (ReglasDeJuego.calcularPuntaje),
+     * ya que el muerto es un recurso compartido por el equipo: si un
+     * integrante lo tomó, ningún compañero puede tomar otro (solo hay uno
+     * por equipo) y ambos se benefician/perjudican igual en el puntaje.
+     * Con 2 jugadores, cada equipo tiene un único integrante, por lo que
+     * este método solo marca al propio jugador (comportamiento idéntico al
+     * de fases anteriores).
+     */
+    private void marcarMuertoTomadoEnElEquipo(int indice) {
+        int equipo = equipoDe(indice);
+        for (int i = 0; i < jugadores.size(); i++) {
+            if (equipoDe(i) == equipo) {
+                jugadores.get(i).setYaTomoMuerto(true);
+            }
         }
     }
 

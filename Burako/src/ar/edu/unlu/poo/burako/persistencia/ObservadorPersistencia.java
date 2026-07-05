@@ -6,12 +6,14 @@ import ar.edu.unlu.rmimvc.observer.IObservableRemoto;
 import ar.edu.unlu.rmimvc.observer.IObservadorRemoto;
 
 import java.rmi.RemoteException;
+import java.util.List;
 
 /**
  * Observador adicional, registrado junto al Controlador, que reacciona
  * exclusivamente al evento {@code partida_terminada} para persistir el
- * resultado final: actualiza las estadísticas de ambos {@link Usuario}, el
- * Ranking, y elimina el guardado intermedio de la partida (si existía).
+ * resultado final: actualiza las estadísticas de todos los {@link Usuario}
+ * participantes, el Ranking, y elimina el guardado intermedio de la
+ * partida (si existía).
  *
  * NO modifica ni reemplaza al Controlador ni la lógica de persistencia:
  * es una implementación adicional que se agrega a la lista de observadores
@@ -24,36 +26,33 @@ import java.rmi.RemoteException;
  * librería RMIMVC invoca actualizar() como una llamada Java local común
  * dentro de ObservableRemoto.notificarObservadores(), sin pasar por RMI.
  *
- * MODIFICADO (Fase 9 - Integración RMIMVC):
- * - Implementa IObservadorRemoto (librería RMIMVC) en lugar de nuestra
- *   interfaz local Observador, ya que Burako.agregarObservador() ahora
- *   proviene de ObservableRemoto y exige ese tipo. El método notificar(Eventos)
- *   se renombra a actualizar(IObservableRemoto, Object) por exigencia de la
- *   interfaz; la lógica interna (chequear si el evento es partida_terminada
- *   y delegar a PersistenciaService.finalizarPartida) es idéntica a la de
- *   fases anteriores.
+ * MODIFICADO (Fase 9 - Integración RMIMVC): implementa IObservadorRemoto en
+ * lugar de nuestra interfaz local Observador (ver Burako.agregarObservador,
+ * heredado de ObservableRemoto).
+ *
+ * MODIFICADO (Fase 10 - Soporte 2 o 4 jugadores): el constructor recibe una
+ * List<Usuario> en lugar de exactamente 2, para funcionar igual con
+ * partidas de 2 o de 4 jugadores sin duplicar la clase.
  */
 public class ObservadorPersistencia implements IObservadorRemoto {
 
     private final PersistenciaService servicio;
     private final Burako estado;
-    private final Usuario usuario1;
-    private final Usuario usuario2;
+    private final List<Usuario> usuarios;
     private final String idPartidaGuardada;
 
     public ObservadorPersistencia(PersistenciaService servicio, Burako estado,
-                                   Usuario usuario1, Usuario usuario2, String idPartidaGuardada) {
+                                   List<Usuario> usuarios, String idPartidaGuardada) {
         this.servicio = servicio;
         this.estado = estado;
-        this.usuario1 = usuario1;
-        this.usuario2 = usuario2;
+        this.usuarios = usuarios;
         this.idPartidaGuardada = idPartidaGuardada;
     }
 
     @Override
     public void actualizar(IObservableRemoto observable, Object o) throws RemoteException {
         if (o == Eventos.partida_terminada) {
-            servicio.finalizarPartida(estado, usuario1, usuario2, idPartidaGuardada);
+            servicio.finalizarPartida(estado, usuarios, idPartidaGuardada);
         }
     }
 }

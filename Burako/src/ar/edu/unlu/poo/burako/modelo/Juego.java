@@ -60,7 +60,7 @@ public class Juego implements JuegoMostrable {
      * Si una ficha real reemplaza a un comodín en una escalera, el comodín
      * se desplaza al final del juego.
      */
-    public void agregar(Ficha ficha, int pos) throws Exception {
+    void agregar(Ficha ficha, int pos) throws Exception {
         if (pos < 1 || pos > fichas.size() + 1) {
             throw new Exception("Posición " + pos + " fuera de rango (el juego tiene "
                     + fichas.size() + " fichas).");
@@ -92,12 +92,12 @@ public class Juego implements JuegoMostrable {
     }
 
     /** Copia interna de las fichas (para que CalculadorPuntaje/ReglasDeJuego operen sin cast). */
-    public List<Ficha> getFichasInternas() {
+    List<Ficha> getFichasInternas() {
         return Collections.unmodifiableList(fichas);
     }
 
     /** Cantidad de fichas actuales en el juego. */
-    public int cantFichas() {
+    int cantFichas() {
         return fichas.size();
     }
 
@@ -109,7 +109,7 @@ public class Juego implements JuegoMostrable {
      * Burako sucio (canasta impura, 7+ fichas con comodín): +100 puntos extra.
      * Juegos sin canasta: solo valor de fichas.
      */
-    public int calcularPuntaje() {
+    int calcularPuntaje() {
         int valorFichas = fichas.stream().mapToInt(Ficha::getValor).sum();
 
         if (ReglasDeJuego.esBurakoLimpio(fichas)) {

@@ -93,6 +93,35 @@ public class Controlador implements IControladorRemoto {
         }
     }
 
+    /** NUEVO (Fase 10 - Soporte 2 o 4 jugadores). */
+    public void setNombres(List<String> nombres) {
+        try {
+            burako.setNombres(nombres);
+        } catch (RemoteException e) {
+            e.printStackTrace();
+        }
+    }
+
+    /** NUEVO (Fase 10 - Soporte 2 o 4 jugadores). */
+    public int getCantidadJugadores() {
+        try {
+            return burako.getCantidadJugadores();
+        } catch (RemoteException e) {
+            e.printStackTrace();
+            return 2;
+        }
+    }
+
+    /** NUEVO (Fase 10 - Soporte 2 o 4 jugadores). */
+    public int getEquipo(int indice) {
+        try {
+            return burako.getEquipo(indice);
+        } catch (RemoteException e) {
+            e.printStackTrace();
+            return indice;
+        }
+    }
+
     // ── Consultas de estado ────────────────────────────────────────────────────
 
     public int getTurnoActual() {

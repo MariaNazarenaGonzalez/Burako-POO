@@ -15,6 +15,7 @@ import java.rmi.RemoteException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 /**
  * Punto de entrada del SERVIDOR.
@@ -34,6 +35,13 @@ import java.util.UUID;
  * flujo que antes ejecutaba vista.MenuPrincipal en el proceso local único,
  * ahora reubicado aquí porque es el servidor quien decide y posee la
  * partida. No se modificó ninguna clase de persistencia para lograrlo.
+ *
+ * MODIFICADO (Fase 10 - Soporte 2 o 4 jugadores):
+ * - Antes de pedir nombres, se pregunta la cantidad de jugadores (2 o 4).
+ * - obtenerUsuario/buscarPartidaAContinuar/registrarGuardadoAlCerrar ahora
+ *   trabajan con List<Usuario> en lugar de exactamente 2 parámetros fijos,
+ *   reutilizando los mismos overloads de PersistenciaService agregados
+ *   para esta fase.
  */
 public class AppServidor {
 
@@ -43,14 +51,15 @@ public class AppServidor {
         int puerto = pedirPuerto("Puerto del servidor", 8888);
         if (puerto < 0) return;
 
+        int cantidadJugadores = pedirCantidadJugadores();
+        if (cantidadJugadores < 0) return;
+
         PersistenciaService persistencia = new PersistenciaService("data");
 
-        Usuario usuario1 = obtenerUsuario(persistencia, "Jugador 1");
-        if (usuario1 == null) return;
-        Usuario usuario2 = obtenerUsuario(persistencia, "Jugador 2");
-        if (usuario2 == null) return;
+        List<Usuario> usuarios = obtenerUsuarios(persistencia, cantidadJugadores);
+        if (usuarios == null) return;
 
-        PartidaGuardada partidaPrevia = buscarPartidaAContinuar(persistencia, usuario1, usuario2);
+        PartidaGuardada partidaPrevia = buscarPartidaAContinuar(persistencia, usuarios);
 
         Burako burako;
         String idPartida;
@@ -59,11 +68,11 @@ public class AppServidor {
                 burako = partidaPrevia.getEstado();
                 idPartida = partidaPrevia.getId();
             } else {
-                burako = new Burako();
-                burako.setNombres(usuario1.getNombre(), usuario2.getNombre());
+                burako = new Burako(cantidadJugadores);
+                burako.setNombres(usuarios.stream().map(Usuario::getNombre).collect(Collectors.toList()));
                 idPartida = UUID.randomUUID().toString();
             }
-            burako.agregarObservador(new ObservadorPersistencia(persistencia, burako, usuario1, usuario2, idPartida));
+            burako.agregarObservador(new ObservadorPersistencia(persistencia, burako, usuarios, idPartida));
         } catch (RemoteException e) {
             // Llamada local dentro del propio proceso del servidor: no debería fallar por red,
             // pero se maneja igual porque IBurako/IObservableRemoto la declaran.
@@ -72,14 +81,15 @@ public class AppServidor {
             return;
         }
 
-        registrarGuardadoAlCerrar(persistencia, burako, usuario1, usuario2, idPartida);
+        registrarGuardadoAlCerrar(persistencia, burako, usuarios, idPartida);
 
         Servidor servidor = new Servidor(ip, puerto);
         try {
             servidor.iniciar(burako);
+            String nombresJoin = String.join(" / ", usuarios.stream().map(Usuario::getNombre).collect(Collectors.toList()));
             JOptionPane.showMessageDialog(null,
-                    "Servidor iniciado en " + ip + ":" + puerto + "\nPartida: "
-                            + usuario1.getNombre() + " vs " + usuario2.getNombre(),
+                    "Servidor iniciado en " + ip + ":" + puerto + "\nPartida (" + cantidadJugadores
+                            + " jugadores): " + nombresJoin,
                     "Burako - Servidor", JOptionPane.INFORMATION_MESSAGE);
         } catch (RemoteException | RMIMVCException e) {
             JOptionPane.showMessageDialog(null, "No se pudo iniciar el servidor:\n" + e.getMessage(),
@@ -88,6 +98,25 @@ public class AppServidor {
     }
 
     // ── Persistencia (idéntica a la Fase 6/7, ahora ejecutada en el servidor) ──
+
+    private static int pedirCantidadJugadores() {
+        Object[] opciones = {"2 Jugadores", "4 Jugadores (2 equipos de 2)"};
+        int seleccion = JOptionPane.showOptionDialog(null,
+                "¿Cuántos jugadores participarán?", "Burako - Servidor",
+                JOptionPane.DEFAULT_OPTION, JOptionPane.QUESTION_MESSAGE, null, opciones, opciones[0]);
+        if (seleccion == JOptionPane.CLOSED_OPTION) return -1;
+        return seleccion == 1 ? 4 : 2;
+    }
+
+    private static List<Usuario> obtenerUsuarios(PersistenciaService persistencia, int cantidadJugadores) {
+        List<Usuario> usuarios = new ArrayList<>();
+        for (int i = 1; i <= cantidadJugadores; i++) {
+            Usuario usuario = obtenerUsuario(persistencia, "Jugador " + i);
+            if (usuario == null) return null; // cancelado
+            usuarios.add(usuario);
+        }
+        return usuarios;
+    }
 
     private static Usuario obtenerUsuario(PersistenciaService persistencia, String etiqueta) {
         String nombre = JOptionPane.showInputDialog(null, "Nombre de " + etiqueta + ":", "Burako - Servidor",
@@ -98,25 +127,29 @@ public class AppServidor {
         return persistencia.obtenerOcrearUsuario(nombre);
     }
 
-    private static PartidaGuardada buscarPartidaAContinuar(PersistenciaService persistencia, Usuario u1, Usuario u2) {
-        List<PartidaGuardada> guardadas = persistencia.listarPartidasDe(u1);
-        guardadas.removeIf(p -> !p.participaUsuario(u2.getId()));
+    /** Busca una partida guardada donde participen EXACTAMENTE los mismos usuarios (mismo conjunto). */
+    private static PartidaGuardada buscarPartidaAContinuar(PersistenciaService persistencia, List<Usuario> usuarios) {
+        List<PartidaGuardada> guardadas = persistencia.listarPartidasDe(usuarios.get(0));
+        for (int i = 1; i < usuarios.size(); i++) {
+            String id = usuarios.get(i).getId();
+            guardadas.removeIf(p -> !p.participaUsuario(id));
+        }
         if (guardadas.isEmpty()) return null;
 
         PartidaGuardada ultima = guardadas.get(guardadas.size() - 1);
+        String nombres = String.join(", ", ultima.getNombresUsuarios());
         int opcion = JOptionPane.showConfirmDialog(null,
-                "Hay una partida guardada entre " + u1.getNombre() + " y " + u2.getNombre()
-                        + " (" + ultima.getFechaGuardado() + ").\n¿Continuarla?",
+                "Hay una partida guardada entre " + nombres + " (" + ultima.getFechaGuardado() + ").\n¿Continuarla?",
                 "Burako - Servidor", JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE);
         return opcion == JOptionPane.YES_OPTION ? ultima : null;
     }
 
     private static void registrarGuardadoAlCerrar(PersistenciaService persistencia, Burako burako,
-                                                    Usuario u1, Usuario u2, String idPartida) {
+                                                    List<Usuario> usuarios, String idPartida) {
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             try {
                 if (burako.getEstadoTurno() != EstadoTurno.PARTIDA_TERMINADA) {
-                    persistencia.guardarPartida(idPartida, burako, u1, u2);
+                    persistencia.guardarPartida(idPartida, burako, usuarios);
                 }
             } catch (RemoteException e) {
                 e.printStackTrace();
