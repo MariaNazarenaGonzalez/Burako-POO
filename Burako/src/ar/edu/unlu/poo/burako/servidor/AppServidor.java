@@ -18,30 +18,15 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
- * Punto de entrada del SERVIDOR.
+ * Punto de entrada de la aplicación servidor.
  *
- * NUEVO (Fase 9 - Integración RMIMVC).
+ * Esta clase inicializa la partida, administra la persistencia de los
+ * datos y publica el modelo para que pueda ser utilizado por los
+ * clientes mediante RMIMVC.
  *
- * El servidor es el único propietario del modelo: crea (o recupera) la
- * única instancia de {@link Burako} que existirá durante toda la ejecución
- * ("Existe únicamente una partida"), la publica remotamente con
- * {@link Servidor}, y es el único proceso que toca el sistema de archivos
- * a través de {@link PersistenciaService}. Los clientes (ver
- * {@code vista.MenuPrincipal}) nunca acceden a persistencia directamente.
- *
- * Reutiliza 100% de la lógica de {@link PersistenciaService} ya existente
- * (registrar/recuperar Usuario, listar y continuar partidas guardadas,
- * ObservadorPersistencia, guardado al cerrar): es exactamente el mismo
- * flujo que antes ejecutaba vista.MenuPrincipal en el proceso local único,
- * ahora reubicado aquí porque es el servidor quien decide y posee la
- * partida. No se modificó ninguna clase de persistencia para lograrlo.
- *
- * MODIFICADO (Fase 10 - Soporte 2 o 4 jugadores):
- * - Antes de pedir nombres, se pregunta la cantidad de jugadores (2 o 4).
- * - obtenerUsuario/buscarPartidaAContinuar/registrarGuardadoAlCerrar ahora
- *   trabajan con List<Usuario> en lugar de exactamente 2 parámetros fijos,
- *   reutilizando los mismos overloads de PersistenciaService agregados
- *   para esta fase.
+ * El servidor es responsable de crear o recuperar una partida,
+ * registrar los observadores necesarios y mantener el estado del
+ * juego durante toda su ejecución.
  */
 public class AppServidor {
 
@@ -74,8 +59,8 @@ public class AppServidor {
             }
             burako.agregarObservador(new ObservadorPersistencia(persistencia, burako, usuarios, idPartida));
         } catch (RemoteException e) {
-            // Llamada local dentro del propio proceso del servidor: no debería fallar por red,
-            // pero se maneja igual porque IBurako/IObservableRemoto la declaran.
+            // La interfaz declara RemoteException, por lo que la excepción
+            // debe manejarse aunque la llamada sea local.
             JOptionPane.showMessageDialog(null, "Error inicializando la partida:\n" + e.getMessage(),
                     "Error", JOptionPane.ERROR_MESSAGE);
             return;
@@ -97,8 +82,14 @@ public class AppServidor {
         }
     }
 
-    // ── Persistencia (idéntica a la Fase 6/7, ahora ejecutada en el servidor) ──
-
+    // Métodos relacionados con la persistencia de la partida.
+    /**
+     * Solicita la cantidad de jugadores que participarán
+     * en la partida.
+     *
+     * @return cantidad de jugadores o -1 si la operación
+     *         fue cancelada.
+     */
     private static int pedirCantidadJugadores() {
         Object[] opciones = {"2 Jugadores", "4 Jugadores (2 equipos de 2)"};
         int seleccion = JOptionPane.showOptionDialog(null,
@@ -107,7 +98,16 @@ public class AppServidor {
         if (seleccion == JOptionPane.CLOSED_OPTION) return -1;
         return seleccion == 1 ? 4 : 2;
     }
-
+    /**
+     * Obtiene la información de los jugadores que participarán
+     * en la partida.
+     *
+     * @param persistencia servicio encargado de administrar
+     *                     los usuarios registrados.
+     * @param cantidadJugadores cantidad de jugadores.
+     * @return lista de usuarios o {@code null} si el proceso
+     *         fue cancelado.
+     */
     private static List<Usuario> obtenerUsuarios(PersistenciaService persistencia, int cantidadJugadores) {
         List<Usuario> usuarios = new ArrayList<>();
         for (int i = 1; i <= cantidadJugadores; i++) {
@@ -117,7 +117,18 @@ public class AppServidor {
         }
         return usuarios;
     }
-
+    /**
+     * Solicita el nombre de un jugador y obtiene su registro
+     * desde el sistema de persistencia.
+     *
+     * Si el usuario no existe previamente, se crea un nuevo
+     * registro.
+     *
+     * @param persistencia servicio de persistencia.
+     * @param etiqueta texto identificador del jugador.
+     * @return usuario correspondiente o {@code null} si la
+     *         operación fue cancelada.
+     */
     private static Usuario obtenerUsuario(PersistenciaService persistencia, String etiqueta) {
         String nombre = JOptionPane.showInputDialog(null, "Nombre de " + etiqueta + ":", "Burako - Servidor",
                 JOptionPane.QUESTION_MESSAGE);
@@ -127,7 +138,19 @@ public class AppServidor {
         return persistencia.obtenerOcrearUsuario(nombre);
     }
 
-    /** Busca una partida guardada donde participen EXACTAMENTE los mismos usuarios (mismo conjunto). */
+    /**
+     * Busca una partida previamente guardada cuyos participantes
+     * coincidan con los jugadores seleccionados.
+     *
+     * Si existe más de una partida compatible, se propone
+     * continuar la más reciente.
+     *
+     * @param persistencia servicio de persistencia.
+     * @param usuarios jugadores de la nueva partida.
+     * @return partida recuperada o {@code null} si no existe
+     *         una compatible o el usuario decide iniciar una
+     *         partida nueva.
+     */
     private static PartidaGuardada buscarPartidaAContinuar(PersistenciaService persistencia, List<Usuario> usuarios) {
         List<PartidaGuardada> guardadas = persistencia.listarPartidasDe(usuarios.get(0));
         for (int i = 1; i < usuarios.size(); i++) {
@@ -143,7 +166,17 @@ public class AppServidor {
                 "Burako - Servidor", JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE);
         return opcion == JOptionPane.YES_OPTION ? ultima : null;
     }
-
+    /**
+     * Registra una tarea que guarda automáticamente la partida
+     * cuando el servidor finaliza su ejecución.
+     *
+     * La partida solo se almacena si aún no ha terminado.
+     *
+     * @param persistencia servicio de persistencia.
+     * @param burako modelo de la partida.
+     * @param usuarios jugadores participantes.
+     * @param idPartida identificador único de la partida.
+     */
     private static void registrarGuardadoAlCerrar(PersistenciaService persistencia, Burako burako,
                                                     List<Usuario> usuarios, String idPartida) {
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
@@ -158,14 +191,27 @@ public class AppServidor {
     }
 
     // ── Diálogos de conexión (mismo patrón que usa la librería en sus ejemplos) ─
-
+    /**
+     * Permite seleccionar la dirección IP sobre la cual
+     * escuchará el servidor.
+     *
+     * @return dirección IP seleccionada o {@code null}
+     *         si se cancela la operación.
+     */
     private static String pedirIp() {
         ArrayList<String> ips = Util.getIpDisponibles();
         return (String) JOptionPane.showInputDialog(null,
                 "Seleccione la IP en la que escuchará el servidor:", "IP del servidor",
                 JOptionPane.QUESTION_MESSAGE, null, ips.toArray(), ips.isEmpty() ? null : ips.get(0));
     }
-
+    /**
+     * Solicita el puerto que utilizará el servidor.
+     *
+     * @param titulo título del cuadro de diálogo.
+     * @param porDefecto puerto sugerido.
+     * @return número de puerto o -1 si el valor ingresado
+     *         es inválido o la operación fue cancelada.
+     */
     private static int pedirPuerto(String titulo, int porDefecto) {
         String puerto = JOptionPane.showInputDialog(null, titulo + ":", String.valueOf(porDefecto));
         if (puerto == null) return -1;

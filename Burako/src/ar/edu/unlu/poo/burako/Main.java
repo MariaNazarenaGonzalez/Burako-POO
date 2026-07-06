@@ -5,22 +5,22 @@ import ar.edu.unlu.poo.burako.vista.MenuPrincipal;
 import javax.swing.*;
 
 /**
- * Punto de entrada de la aplicación CLIENTE.
+ * Punto de entrada de la aplicación cliente.
  *
- * MODIFICADO (Fase 7 - Menú gráfico):
- * - Ya no contiene wiring de MVC ni lógica de flujo: toda esa
- *   responsabilidad se trasladó a MenuPrincipal (capa de presentación).
- *
- * MODIFICADO (Fase 9 - Integración RMIMVC):
- * - Ya no crea PersistenciaService: la persistencia ahora vive
- *   exclusivamente en el servidor (ver servidor.AppServidor). Este Main
- *   es el punto de entrada de UN cliente (Vista + Controlador + proxy
- *   remoto), no del servidor.
- * - Para iniciar el servidor, ejecutar servidor.AppServidor en un proceso
- *   separado (ver README de la entrega).
+ * Inicializa la interfaz gráfica y muestra el menú principal,
+ * desde el cual el usuario puede acceder a las distintas
+ * funcionalidades del sistema.
  */
 public class Main {
-
+    /**
+     * Inicia la ejecución de la aplicación.
+     *
+     * La interfaz gráfica se crea dentro del hilo de despacho de
+     * eventos de Swing para garantizar un funcionamiento seguro
+     * de los componentes gráficos.
+     *
+     * @param args argumentos recibidos desde la línea de comandos.
+     */
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> new MenuPrincipal().setVisible(true));
     }
