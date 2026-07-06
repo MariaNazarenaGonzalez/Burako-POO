@@ -4,17 +4,27 @@ import java.io.Serializable;
 import java.util.List;
 
 /**
- * Vista de solo lectura de un Juego (combinación de fichas en la mesa).
- * Expuesta al Controlador y la Vista sin revelar la implementación interna.
+ * Define una vista de solo lectura de un juego formado sobre la mesa.
  *
- * MODIFICADO (Fase 8 - Preparación RMIMVC): extiende Serializable, por la
- * misma razón que FichaMostrable: es un tipo que IBurako.getJuegos()
- * expone hacia afuera y debe poder viajar por RMI.
+ * Esta interfaz permite consultar las fichas que componen un juego
+ * y su clasificación, sin exponer la implementación interna del
+ * modelo.
+ *
+ * Al extender {@link Serializable}, sus implementaciones pueden ser
+ * utilizadas tanto en entornos locales como remotos.
  */
 public interface JuegoMostrable extends Serializable {
-    /** Retorna las fichas que componen este juego, en orden. */
+    /**
+     * Obtiene las fichas que forman el juego.
+     *
+     * @return lista ordenada de fichas del juego.
+     */
     List<FichaMostrable> getFichas();
 
-    /** Retorna el tipo clasificatorio de este juego. */
+    /**
+     * Obtiene la clasificación del juego.
+     *
+     * @return tipo del juego.
+     */
     TipoJuego getTipo();
 }

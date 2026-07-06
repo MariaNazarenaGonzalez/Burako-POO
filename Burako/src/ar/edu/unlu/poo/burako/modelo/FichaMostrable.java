@@ -3,15 +3,18 @@ package ar.edu.unlu.poo.burako.modelo;
 import java.io.Serializable;
 
 /**
- * Vista de solo lectura de una Ficha, expuesta hacia el Controlador y la Vista.
- * El Controlador y la Vista nunca reciben objetos Ficha directamente,
- * solo FichaMostrable, preservando el encapsulamiento del modelo.
+ * Define una vista de solo lectura de una ficha del juego Burako.
  *
- * MODIFICADO (Fase 8 - Preparación RMIMVC): extiende Serializable.
- * Es el tipo que IBurako.getPozo()/getAtril() exponen realmente hacia
- * afuera; exigir Serializable a nivel de interfaz garantiza que
- * cualquier implementación futura de FichaMostrable sea transportable
- * por RMI, en lugar de depender de que Ficha "casualmente" lo sea.
+ * Esta interfaz expone únicamente la información necesaria para
+ * consultar las características de una ficha, evitando que las
+ * capas externas al modelo puedan modificar su estado.
+ *
+ * Es utilizada por el Controlador y la Vista para acceder a los
+ * datos de una ficha manteniendo el encapsulamiento del modelo.
+ *
+ * Al extender {@link Serializable}, sus implementaciones pueden
+ * ser transmitidas entre distintos procesos o equipos cuando la
+ * aplicación utiliza mecanismos de comunicación remota.
  */
 public interface FichaMostrable extends Serializable {
     FichaColor getColor();

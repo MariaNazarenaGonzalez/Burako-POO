@@ -6,40 +6,30 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Gestiona el stock de muertos disponibles en la partida.
+ * Administra los muertos disponibles durante una partida de Burako.
  *
- * Responsabilidad única: administrar los muertos y entregarlos cuando
- * Burako lo ordena. NO decide si corresponde entregar un muerto: esa decisión
- * la toman ReglasDeJuego.correspondeTomaMuertoDirecta/Indirecta().
+ * Esta clase es responsable de almacenar los muertos de cada equipo
+ * y entregarlos cuando el reglamento del juego lo permite.
  *
- * Burako pregunta a ReglasDeJuego si corresponde, y si corresponde,
- * llama asignarMuerto(jugador, equipo) aquí.
+ * No determina cuándo corresponde asignar un muerto; esa validación
+ * es realizada por la lógica de reglas del juego. Su única función
+ * consiste en gestionar la disponibilidad y asignación de los muertos
+ * a los jugadores del equipo correspondiente.
  *
- * MODIFICADO (Fase 6 - Persistencia): implementa Serializable; los muertos
- * pendientes forman parte del estado guardable de una partida.
- *
- * MODIFICADO (Fase 10 - Soporte 2 o 4 jugadores):
- * - Antes, los 2 muertos vivían en una cola FIFO genérica (ArrayDeque):
- *   cualquier jugador que corresponda tomaba "el siguiente" muerto,
- *   indistintamente. Esto era correcto con exactamente 2 jugadores (cada
- *   uno termina tomando como máximo un muerto, porque su propio
- *   yaTomoMuerto lo bloquea después), pero con 4 jugadores en 2 equipos
- *   sería incorrecto: un jugador del equipo A podría terminar tomando por
- *   error el muerto reservado para el equipo B si la cola no distingue
- *   equipos.
- * - Ahora los muertos se indexan explícitamente por equipo (Map<equipo,
- *   Muerto>): asignarMuerto(jugador, equipo) entrega SIEMPRE el muerto de
- *   ESE equipo, y lo remueve del mapa para que nadie más de ese equipo
- *   pueda tomarlo de nuevo. Con 2 jugadores, equipo == índice de jugador
- *   (ver Burako.equipoDe), por lo que el comportamiento observable es
- *   idéntico al de fases anteriores.
+ * Los muertos se almacenan asociados a cada equipo para garantizar
+ * que cada uno reciba únicamente el que le corresponde.
  */
 class GestorMuertos implements Serializable {
 
     private static final long serialVersionUID = 2L;
 
     private final Map<Integer, Muerto> muertosPorEquipo;
-
+    /**
+     * Crea el gestor de muertos de la partida.
+     *
+     * @param fichasMuerto1 fichas que conforman el muerto del primer equipo.
+     * @param fichasMuerto2 fichas que conforman el muerto del segundo equipo.
+     */
     GestorMuertos(List<Ficha> fichasMuerto1, List<Ficha> fichasMuerto2) {
         muertosPorEquipo = new HashMap<>();
         muertosPorEquipo.put(0, new Muerto(fichasMuerto1));
@@ -47,9 +37,13 @@ class GestorMuertos implements Serializable {
     }
 
     /**
-     * Entrega al jugador el muerto correspondiente a su equipo.
-     * Precondición: hayMuertoDisponibleParaEquipo(equipo) == true.
-     * La precondición es verificada por ReglasDeJuego antes de esta llamada.
+     * Asigna al jugador el muerto correspondiente a su equipo.
+     *
+     * Se asume que previamente se verificó la disponibilidad del muerto
+     * para el equipo indicado.
+     *
+     * @param jugador jugador que recibirá el muerto.
+     * @param equipo identificador del equipo al que pertenece el jugador.
      */
     void asignarMuerto(Jugador jugador, int equipo) {
         Muerto muerto = muertosPorEquipo.remove(equipo);
@@ -57,12 +51,24 @@ class GestorMuertos implements Serializable {
         jugador.marcarMuertoTomado();
     }
 
-    /** Retorna true si el equipo dado todavía no tomó su muerto. */
+    /**
+     * Indica si el equipo especificado aún dispone de su muerto.
+     *
+     * @param equipo identificador del equipo.
+     * @return {@code true} si el muerto continúa disponible;
+     *         {@code false} en caso contrario.
+     */
     boolean hayMuertoDisponibleParaEquipo(int equipo) {
         return muertosPorEquipo.containsKey(equipo);
     }
 
-    /** Retorna true si hay al menos un muerto sin tomar, en cualquier equipo. */
+    /**
+     * Verifica si todavía existe al menos un muerto disponible
+     * para ser asignado.
+     *
+     * @return {@code true} si queda algún muerto sin entregar;
+     *         {@code false} en caso contrario.
+     */
     boolean hayMuertosDisponibles() {
         return !muertosPorEquipo.isEmpty();
     }

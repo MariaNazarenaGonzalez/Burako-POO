@@ -8,42 +8,12 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Orquestador principal del modelo de Burako.
- * Implementa IBurako (la interfaz que expone el Controlador).
+ * Modelo principal del juego Burako.
  *
- * Responsabilidad única: coordinar los colaboradores estructurales
- * (GestorTurnos, GestorMuertos, Jugador, Mazo, Pozo) usando ReglasDeJuego
- * como árbitro de todas las decisiones de negocio.
- *
- * Flujo de cada acción pública:
- *   1. Construir ContextoJugada con el estado actual relevante.
- *   2. Consultar ReglasDeJuego.validarXxx(ctx) → ResultadoValidacion.
- *   3a. Si válido:   ejecutar la operación estructural, notificar evento exitoso.
- *   3b. Si inválido: registrar mensaje, notificar evento _NO_exitoso.
- *
- * Burako NO contiene ninguna validación de negocio propia.
- *
- * MODIFICADO (Fase 6 - Persistencia):
- * - Implementa Serializable para permitir guardar/recuperar el estado
- *   completo de una partida usando Serialización Java (ver paquete
- *   persistencia). No se altera ningún comportamiento ni regla del juego.
- *
- * MODIFICADO (Fase 10 - Soporte 2 o 4 jugadores):
- * - Nuevo constructor Burako(int cantidadJugadores) admite 2 o 4. El
- *   constructor sin argumentos se conserva EXACTAMENTE igual (this(2)),
- *   por lo que todo el código y los 55 tests existentes que ya usaban
- *   "new Burako()" siguen funcionando sin cambios.
- * - Con 4 jugadores se juega en 2 equipos de 2 (jugadores 0 y 2 forman un
- *   equipo; 1 y 3 forman el otro — "sentados cruzados", orden de turno
- *   0,1,2,3 sin alterar GestorTurnos, que ya era genérico). Los equipos
- *   comparten ÚNICAMENTE el muerto: cada equipo tiene UN muerto (no uno
- *   por jugador), y si un integrante lo toma, también se marca a su
- *   compañero como "ya tomó muerto" a efectos de puntaje, ya que
- *   físicamente es un solo muerto compartido. Todo lo demás (atril,
- *   juegos bajados, puntaje individual) sigue siendo exclusivo de cada
- *   jugador ("el resto es individual").
- * - Con 4 jugadores se reparten 11 fichas de mano (en vez de 12) para no
- *   agotar el mazo: 4×11 + 2×11(muertos) = 66 de 106 fichas repartidas.
+ * Coordina el desarrollo de una partida administrando jugadores, mazo,
+ * pozo, turnos y muertos. Cada acción solicitada por el controlador es
+ * validada mediante ReglasDeJuego antes de modificar el estado de la
+ * partida y notificar los eventos correspondientes a los observadores.
  */
 public class Burako extends ObservableRemoto implements IBurako, Serializable {
 
@@ -57,7 +27,7 @@ public class Burako extends ObservableRemoto implements IBurako, Serializable {
 
     private String ultimoMensajeError = "";
 
-    /** Partida de 2 jugadores (comportamiento original, sin cambios). */
+    /** Crea una partida con dos jugadores. */
     public Burako() {
         this(2);
     }
@@ -88,11 +58,11 @@ public class Burako extends ObservableRemoto implements IBurako, Serializable {
     }
 
     /**
-     * Retorna el índice de equipo (0 o 1) del jugador dado. Con 2 jugadores,
-     * cada uno es su propio equipo (0 y 1 respectivamente): el
-     * comportamiento de toma de muerto queda idéntico al de fases
-     * anteriores. Con 4 jugadores, 0 y 2 comparten equipo 0; 1 y 3
-     * comparten equipo 1.
+     * Obtiene el equipo al que pertenece un jugador.
+     *
+     * En partidas de dos jugadores cada participante constituye su propio
+     * equipo. En partidas de cuatro jugadores los equipos se forman con
+     * los jugadores 0 y 2, y con los jugadores 1 y 3.
      */
     private int equipoDe(int indiceJugador) {
         return jugadores.size() == 2 ? indiceJugador : indiceJugador % 2;
@@ -194,7 +164,7 @@ public class Burako extends ObservableRemoto implements IBurako, Serializable {
     public void bajarJuego(int indice, int[] posicionesAtril) throws RemoteException {
         Jugador jugador = jugadores.get(indice);
 
-        // Extraer fichas para pasarlas al validador
+        // Obtiene las fichas seleccionadas para validar la jugada.
         List<Ficha> seleccionadas;
         try {
             seleccionadas = fichasEnPosiciones(jugador, posicionesAtril);
@@ -245,7 +215,7 @@ public class Burako extends ObservableRemoto implements IBurako, Serializable {
                 .tipoJuegoDestino(tipoDestino)
                 .build();
 
-        // posJuego es 1-based; validador usa 0-based para la posición
+        // Convierte la posición recibida al índice utilizado internamente.
         ResultadoValidacion r = ReglasDeJuego.validarApoyarJuego(
                 ctx, ficha, posJuego - 1, fichasDelJuego);
         if (!r.esValido()) {
@@ -270,7 +240,7 @@ public class Burako extends ObservableRemoto implements IBurako, Serializable {
     public void agregarPozo(int posAtril, int indice) throws RemoteException {
         Jugador jugador = jugadores.get(indice);
 
-        // Paso 1: validar que puede descartar (turno + estado JUGAR)
+        // Verifica que el jugador pueda realizar el descarte.
         ContextoJugada ctxDescarte = contextoBase(indice).build();
         ResultadoValidacion rd = ReglasDeJuego.validarDescarte(ctxDescarte);
         if (!rd.esValido()) {
@@ -278,7 +248,7 @@ public class Burako extends ObservableRemoto implements IBurako, Serializable {
             return;
         }
 
-        // Paso 2: extraer la ficha del atril
+        // Obtiene la ficha seleccionada y la retira del atril.
         Ficha ficha;
         try {
             ficha = jugador.verAtril(posAtril);
@@ -290,13 +260,13 @@ public class Burako extends ObservableRemoto implements IBurako, Serializable {
 
         pozo.agregar(ficha);
 
-        // Paso 3: si el atril quedó vacío, evaluar consecuencias
+        // Evalúa las acciones correspondientes cuando el jugador queda sin fichas.
         if (jugador.atrilVacio()) {
             ContextoJugada ctxFinal = contextoConJugador(indice, jugador);
             ResultadoValidacion rf = ReglasDeJuego.validarDescarteFinal(ctxFinal);
 
             if (!rf.esValido()) {
-                // Revertir: devolver la ficha al atril
+                // Restaura el estado anterior si la jugada no puede completarse.
                 jugador.agregarAtril(pozo.tomar());
                 fallar(rf.getMensaje(), Eventos.agregarPozo_NO_exitoso);
                 return;
@@ -314,7 +284,7 @@ public class Burako extends ObservableRemoto implements IBurako, Serializable {
                 notificarObservadores(Eventos.cortar_exitoso);
                 notificarObservadores(Eventos.partida_terminada);
             } else {
-                // Atril vacío sin muerto ni corte: avanzar turno normalmente
+                // Si no corresponde tomar el muerto ni finalizar la partida, continúa el siguiente turno.
                 gestorTurnos.avanzarTurno();
                 notificarObservadores(Eventos.agregarPozo_exitoso);
             }
@@ -353,8 +323,8 @@ public class Burako extends ObservableRemoto implements IBurako, Serializable {
     }
 
     /**
-     * Contexto con el estado ACTUAL del jugador (post-operación).
-     * Usado para evaluar descarte final DESPUÉS de haber removido la ficha del atril.
+     * Construye un contexto utilizando el estado actual del jugador después
+     * de haberse realizado una acción, para evaluar las reglas aplicables.
      */
     private ContextoJugada contextoConJugador(int indice, Jugador j) {
         return ContextoJugada.builder()
@@ -372,8 +342,8 @@ public class Burako extends ObservableRemoto implements IBurako, Serializable {
     }
 
     /**
-     * Si el atril quedó vacío tras bajar/apoyar y corresponde toma directa de muerto,
-     * la ejecuta. El turno NO avanza en la toma directa.
+     * Asigna el muerto al jugador cuando, luego de realizar una jugada,
+     * cumple las condiciones establecidas por las reglas del juego.
      */
     private void procesarTomaMuertaDirecta(Jugador jugador, int indice) throws RemoteException {
         ContextoJugada ctx = contextoConJugador(indice, jugador);
@@ -385,14 +355,9 @@ public class Burako extends ObservableRemoto implements IBurako, Serializable {
     }
 
     /**
-     * Marca a TODOS los jugadores del mismo equipo que {@code indice} como
-     * "ya tomó muerto" a efectos de puntaje (ReglasDeJuego.calcularPuntaje),
-     * ya que el muerto es un recurso compartido por el equipo: si un
-     * integrante lo tomó, ningún compañero puede tomar otro (solo hay uno
-     * por equipo) y ambos se benefician/perjudican igual en el puntaje.
-     * Con 2 jugadores, cada equipo tiene un único integrante, por lo que
-     * este método solo marca al propio jugador (comportamiento idéntico al
-     * de fases anteriores).
+     * Registra que el equipo correspondiente ya tomó su muerto para que
+     * dicha información sea considerada durante el resto de la partida y
+     * en el cálculo del puntaje final.
      */
     private void marcarMuertoTomadoEnElEquipo(int indice) {
         int equipo = equipoDe(indice);
@@ -404,8 +369,9 @@ public class Burako extends ObservableRemoto implements IBurako, Serializable {
     }
 
     /**
-     * Extrae las fichas del atril del jugador en las posiciones 1-based dadas,
-     * sin removerlas. Para construir el ContextoJugada antes de validar.
+     * Obtiene las fichas ubicadas en las posiciones indicadas del atril sin
+     * modificar su contenido. Se utiliza para validar una jugada antes de
+     * ejecutarla.
      */
     private List<Ficha> fichasEnPosiciones(Jugador jugador, int[] posiciones) throws Exception {
         List<FichaMostrable> atril = jugador.getAtril();

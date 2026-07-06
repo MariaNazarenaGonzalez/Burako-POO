@@ -1,8 +1,10 @@
 package ar.edu.unlu.poo.burako.modelo;
 
 /**
- * Colores posibles de una ficha de Burako.
- * Renombrado de Ficha_Color a FichaColor siguiendo convenciones Java (PascalCase).
+ * Representa los colores disponibles para las fichas
+ * utilizadas durante una partida de Burako.
+ *
+ * Cada ficha pertenece a uno de estos cuatro colores.
  */
 public enum FichaColor {
     Rojo, Negro, Amarillo, Azul

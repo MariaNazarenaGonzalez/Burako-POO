@@ -6,24 +6,16 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * Representa el estado de un jugador durante la partida.
+ * Representa a un jugador participante de una partida de Burako.
  *
- * Responsabilidad única: mantener el estado del jugador (atril, juegos bajados,
- * muerto tomado) y ejecutar operaciones estructurales sobre ese estado.
+ * Cada jugador mantiene su nombre, las fichas disponibles en su
+ * atril, los juegos que ha bajado a la mesa y el estado de toma
+ * del muerto.
  *
- * NO contiene validaciones de reglas. Todas las validaciones son realizadas
- * por ReglasDeJuego antes de que Burako invoque los métodos de esta clase.
- * Si se invoca un método con datos inválidos, se lanza Exception como
- * protección ante uso incorrecto del API interno.
- *
- * Cambios respecto a la versión anterior:
- * - Eliminada referencia circular a Burako.
- * - calcularPuntaje() delega completamente a ReglasDeJuego.calcularPuntaje().
- * - bajarJuego() y apoyarJuego() no validan reglas, solo ejecutan.
- * - Acceso de paquete para métodos invocados por Burako y GestorMuertos.
- *
- * MODIFICADO (Fase 6 - Persistencia): implementa Serializable para formar
- * parte del estado guardable de una partida (es referenciado desde Burako).
+ * Además, proporciona las operaciones necesarias para administrar
+ * estos elementos durante el desarrollo de la partida, mientras
+ * que la validación de las reglas del juego es responsabilidad de
+ * otras clases del modelo.
  */
 public class Jugador implements Serializable {
 
@@ -33,7 +25,11 @@ public class Jugador implements Serializable {
     private final List<Juego> juegos;
     private boolean           yaTomoMuerto;
     private String            nombre;
-
+    /**
+     * Crea un jugador con las fichas iniciales de su atril.
+     *
+     * @param fichasIniciales fichas entregadas al comenzar la partida.
+     */
     Jugador(List<Ficha> fichasIniciales) {
         this.atril        = new Atril(fichasIniciales);
         this.juegos       = new ArrayList<>();
@@ -53,7 +49,13 @@ public class Jugador implements Serializable {
     /** Invocado por GestorMuertos al entregar el muerto. */
     void marcarMuertoTomado()           { this.yaTomoMuerto = true; }
 
-    /** Compatibilidad con tests existentes. */
+    /**
+     * Modifica manualmente el estado de toma del muerto.
+     *
+     * Este método se utiliza principalmente durante pruebas.
+     *
+     * @param v nuevo estado del jugador respecto al muerto.
+     */
     public void setYaTomoMuerto(boolean v) { this.yaTomoMuerto = v; }
 
     // ── Atril ─────────────────────────────────────────────────────────────────
@@ -62,27 +64,40 @@ public class Jugador implements Serializable {
     void agregarAtril(Ficha ficha)        { atril.agregar(ficha); }
 
     /**
-     * Retorna la ficha en la posición 1-based sin removerla.
-     * @throws Exception si la posición no existe.
+     * Obtiene la ficha ubicada en una posición del atril sin retirarla.
+     *
+     * @param pos posición de la ficha (comenzando en 1).
+     * @return ficha ubicada en la posición indicada.
+     * @throws Exception si la posición es inválida.
      */
     Ficha verAtril(int pos) throws Exception {
         return atril.ver(new int[]{pos}).get(0);
     }
 
     /**
-     * Remueve la ficha dada del atril.
-     * @throws Exception si la ficha no está en el atril.
+     * Elimina una ficha del atril.
+     *
+     * @param ficha ficha que se desea retirar.
+     * @throws Exception si la ficha no pertenece al atril.
      */
     void sacarAtril(Ficha ficha) throws Exception {
         atril.sacar(List.of(ficha));
     }
 
-    /** Vista de solo lectura del atril (para IBurako → Controlador). */
+    /**
+     * Obtiene una vista de solo lectura del atril.
+     *
+     * @return fichas disponibles en el atril del jugador.
+     */
     public List<FichaMostrable> getAtril() {
         return atril.get();
     }
 
-    /** Acceso tipado sin cast, para ReglasDeJuego.calcularPuntaje(). */
+    /**
+     * Obtiene las fichas del atril para uso interno del modelo.
+     *
+     * @return copia de las fichas del atril.
+     */
     List<Ficha> getAtrilInterno() {
         List<Ficha> copia = new ArrayList<>();
         for (FichaMostrable fm : atril.get()) {
@@ -96,9 +111,10 @@ public class Jugador implements Serializable {
     // ── Juegos ────────────────────────────────────────────────────────────────
 
     /**
-     * Baja un nuevo juego con las fichas en las posiciones 1-based indicadas.
-     * Precondición: ReglasDeJuego.validarBajarJuego() aprobó la operación.
-     * @throws Exception si hay error estructural (posición inválida, combinación inválida).
+     * Forma un nuevo juego utilizando las fichas indicadas del atril.
+     *
+     * @param posicionesAtril posiciones de las fichas seleccionadas.
+     * @throws Exception si ocurre un error al crear el juego.
      */
     void bajarJuego(int[] posicionesAtril) throws Exception {
         List<Ficha> seleccionadas = atril.ver(posicionesAtril);
@@ -108,10 +124,12 @@ public class Jugador implements Serializable {
     }
 
     /**
-     * Apoya la ficha en posAtril (1-based) sobre el juego numJuego (1-based)
-     * en la posición posEnJuego (1-based) de ese juego.
-     * Precondición: ReglasDeJuego.validarApoyarJuego() aprobó la operación.
-     * @throws Exception si algún índice es inválido estructuralmente.
+     * Agrega una ficha del atril a un juego existente.
+     *
+     * @param posAtril posición de la ficha en el atril.
+     * @param posEnJuego posición donde se insertará la ficha.
+     * @param numJuego juego sobre el que se realizará el apoyo.
+     * @throws Exception si alguna posición es inválida.
      */
     void apoyarJuego(int posAtril, int posEnJuego, int numJuego) throws Exception {
         if (numJuego < 1 || numJuego > juegos.size()) {
@@ -122,13 +140,25 @@ public class Jugador implements Serializable {
         sacarAtril(ficha);
     }
 
-    /** Vista de solo lectura de los juegos bajados (para IBurako → Controlador). */
+    /**
+     * Obtiene los juegos que el jugador ha bajado a la mesa.
+     *
+     * @return lista de juegos del jugador.
+     */
     public List<JuegoMostrable> getJugadas() {
         return Collections.unmodifiableList(juegos);
     }
-
+    /**
+     * Obtiene la cantidad de juegos bajados.
+     *
+     * @return cantidad de juegos.
+     */
     public int cantJuegos() { return juegos.size(); }
-
+    /**
+     * Indica si el jugador posee al menos una canasta.
+     *
+     * @return {@code true} si existe una canasta; {@code false} en caso contrario.
+     */
     public boolean tieneCanasta() {
         return juegos.stream().anyMatch(j -> j.getTipo().esCanasta());
     }
@@ -136,10 +166,10 @@ public class Jugador implements Serializable {
     // ── Puntaje ───────────────────────────────────────────────────────────────
 
     /**
-     * Calcula el puntaje final delegando a ReglasDeJuego, que es la única
-     * fuente de verdad para las reglas de puntaje.
+     * Calcula el puntaje final obtenido por el jugador.
      *
-     * @param corto true si este jugador fue quien cerró la partida.
+     * @param corto indica si el jugador fue quien cerró la partida.
+     * @return puntaje total del jugador.
      */
     public int calcularPuntaje(boolean corto) {
         return ReglasDeJuego.calcularPuntaje(
@@ -154,8 +184,10 @@ public class Jugador implements Serializable {
     // ── Acceso interno a juegos (para ReglasDeJuego.validarApoyarJuego) ───────
 
     /**
-     * Retorna las fichas internas del juego en la posición numJuego (1-based).
-     * Usado por Burako para construir el ContextoJugada al apoyar.
+     * Obtiene las fichas que componen un juego determinado.
+     *
+     * @param numJuego número del juego (comenzando en 1).
+     * @return fichas del juego indicado o una lista vacía si no existe.
      */
     List<Ficha> getFichasDeJuego(int numJuego) {
         if (numJuego < 1 || numJuego > juegos.size()) return List.of();
@@ -163,8 +195,10 @@ public class Jugador implements Serializable {
     }
 
     /**
-     * Retorna el TipoJuego del juego en la posición numJuego (1-based).
-     * Usado por Burako para construir el ContextoJugada al apoyar.
+     * Obtiene el tipo correspondiente a un juego del jugador.
+     *
+     * @param numJuego número del juego (comenzando en 1).
+     * @return tipo del juego o {@code null} si no existe.
      */
     TipoJuego getTipoDeJuego(int numJuego) {
         if (numJuego < 1 || numJuego > juegos.size()) return null;

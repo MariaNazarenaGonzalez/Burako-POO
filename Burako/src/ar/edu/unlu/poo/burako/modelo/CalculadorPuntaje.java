@@ -3,17 +3,11 @@ package ar.edu.unlu.poo.burako.modelo;
 import java.util.List;
 
 /**
- * Calcula el puntaje final de un jugador al terminar la partida.
+ * Calcula el puntaje final de un jugador según las reglas del juego.
  *
- * NUEVA - Extraída de Jugador.calcularPuntaje() para separar la responsabilidad
- * de "calcular puntos al final" de la responsabilidad de "gestionar el estado
- * del jugador durante la partida".
- *
- * También elimina el cast inseguro que existía en el original:
- *   puntosAtril += ((Ficha) f).getValor();   // violación de LSP
- *
- * Al recibir directamente la lista interna de Ficha (acceso de paquete),
- * no se necesita ningún cast.
+ * El cálculo contempla los puntos obtenidos en los juegos realizados,
+ * las fichas restantes en el atril y las bonificaciones o penalizaciones
+ * correspondientes al cierre de la partida y a la toma del muerto.
  */
 final class CalculadorPuntaje {
 

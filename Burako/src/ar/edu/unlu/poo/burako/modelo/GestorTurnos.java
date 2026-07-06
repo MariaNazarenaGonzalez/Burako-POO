@@ -3,18 +3,15 @@ package ar.edu.unlu.poo.burako.modelo;
 import java.io.Serializable;
 
 /**
- * Gestiona el estado del turno: quién juega y en qué fase está.
+ * Administra el estado del turno durante una partida.
  *
- * Responsabilidad única: mantener y transicionar el estado (turno + fase).
- * NO contiene validaciones de negocio. Las validaciones de "¿puede este
- * jugador hacer esta acción?" son responsabilidad exclusiva de ReglasDeJuego.
+ * Esta clase mantiene el jugador que posee el turno y la etapa
+ * actual del mismo, permitiendo realizar las transiciones entre
+ * los distintos estados del juego.
  *
- * GestorTurnos solo expone transiciones: marcarFichaTomada(), avanzarTurno(),
- * finalizarPartida(). Burako las invoca DESPUÉS de que ReglasDeJuego aprobó
- * la acción.
- *
- * MODIFICADO (Fase 6 - Persistencia): implementa Serializable; el turno
- * actual y la fase forman parte del estado guardable de una partida.
+ * Su responsabilidad se limita a gestionar el turno; las
+ * validaciones sobre si una acción está permitida son realizadas
+ * por la lógica de reglas del juego.
  */
 class GestorTurnos implements Serializable {
 
@@ -23,7 +20,14 @@ class GestorTurnos implements Serializable {
     private int         turnoActual;
     private EstadoTurno estado;
     private final int   cantidadJugadores;
-
+    /**
+     * Inicializa el gestor de turnos.
+     *
+     * La partida comienza con el primer jugador y en la fase de
+     * toma de fichas.
+     *
+     * @param cantidadJugadores cantidad total de jugadores de la partida.
+     */
     GestorTurnos(int cantidadJugadores) {
         this.cantidadJugadores = cantidadJugadores;
         this.turnoActual       = 0;
@@ -31,29 +35,45 @@ class GestorTurnos implements Serializable {
     }
 
     // ── Consultas ──────────────────────────────────────────────────────────────
-
+    /**
+     * Obtiene el índice del jugador que posee el turno.
+     *
+     * @return índice del jugador actual.
+     */
     int getTurnoActual() {
         return turnoActual;
     }
-
+    /**
+     * Obtiene la etapa actual del turno.
+     *
+     * @return estado del turno.
+     */
     EstadoTurno getEstado() {
         return estado;
     }
 
     // ── Transiciones (solo las invoca Burako, tras validar con ReglasDeJuego) ──
 
-    /** TOMAR → JUGAR: el jugador tomó su ficha. */
+    /**
+     * Cambia el estado del turno a la fase de juego,
+     * indicando que el jugador ya tomó una ficha.
+     */
     void marcarFichaTomada() {
         estado = EstadoTurno.JUGAR;
     }
 
-    /** JUGAR → TOMAR (del siguiente jugador): fin del turno actual. */
+    /**
+     * Finaliza el turno del jugador actual y asigna
+     * el turno al siguiente jugador de forma circular.
+     */
     void avanzarTurno() {
         turnoActual = (turnoActual + 1) % cantidadJugadores;
         estado      = EstadoTurno.TOMAR;
     }
 
-    /** → PARTIDA_TERMINADA: la partida finalizó. */
+    /**
+     * Marca la partida como finalizada.
+     */
     void finalizarPartida() {
         estado = EstadoTurno.PARTIDA_TERMINADA;
     }

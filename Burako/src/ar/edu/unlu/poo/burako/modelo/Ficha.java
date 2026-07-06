@@ -1,18 +1,15 @@
 package ar.edu.unlu.poo.burako.modelo;
 
 /**
- * Representa una ficha individual de Burako.
+ * Representa una ficha del juego Burako.
  *
- * MODIFICADO respecto al original:
- * - Eliminados los métodos estáticos fichaNumSig() y fichaColorSig(): la lógica
- *   de "siguiente número" ahora vive en FichaNumero.siguiente(), cohesionando
- *   el comportamiento con su tipo. La lógica de "siguiente color" era solo
- *   usada por Mazo para construirse; se movió allí como método privado.
- * - Actualizado para usar FichaColor y FichaNumero (nombres corregidos).
- * - Ningún import de AWT, Swing ni consola.
- * - (Fase 6) Implementa Serializable: es la unidad mínima del estado
- *   guardable de una partida (mazo, pozo, atriles, muertos y juegos
- *   bajados están compuestos de Ficha).
+ * Cada ficha está compuesta por un color y un número,
+ * los cuales determinan su comportamiento dentro de
+ * las jugadas y el puntaje que aporta al finalizar
+ * la partida.
+ *
+ * La clase es inmutable: una vez creada una ficha,
+ * sus atributos no pueden modificarse.
  */
 public class Ficha implements FichaMostrable {
 
@@ -20,7 +17,12 @@ public class Ficha implements FichaMostrable {
 
     private final FichaColor color;
     private final FichaNumero numero;
-
+    /**
+     * Crea una ficha con el color y número indicados.
+     *
+     * @param color color de la ficha.
+     * @param numero número o valor representado por la ficha.
+     */
     public Ficha(FichaColor color, FichaNumero numero) {
         this.color = color;
         this.numero = numero;
@@ -37,7 +39,10 @@ public class Ficha implements FichaMostrable {
     }
 
     /**
-     * Retorna el valor en puntos de esta ficha según las reglas de Burako.
+     * Obtiene el valor en puntos de la ficha de acuerdo
+     * con las reglas del juego.
+     *
+     * @return puntaje correspondiente a la ficha.
      */
     public int getValor() {
         switch (numero) {
@@ -54,13 +59,24 @@ public class Ficha implements FichaMostrable {
     }
 
     /**
-     * Indica si esta ficha actúa como comodín (comodín negro o el 2 en ciertos contextos).
-     * El 2 puede actuar como comodín en escaleras e influye en la pureza de las canastas.
+     * Determina si la ficha puede actuar como comodín.
+     *
+     * En Burako, tanto el comodín tradicional como la
+     * ficha número dos pueden cumplir esta función
+     * dependiendo del tipo de juego formado.
+     *
+     * @return {@code true} si la ficha puede utilizarse
+     * como comodín; {@code false} en caso contrario.
      */
     public boolean esComodin() {
         return numero == FichaNumero.Comodin || numero == FichaNumero.N2;
     }
 
+    /**
+     * Devuelve una representación textual de la ficha.
+     *
+     * @return cadena con el formato [COLOR_NUMERO].
+     */
     @Override
     public String toString() {
         return "[" + color.name() + "_" + numero.name() + "]";

@@ -6,17 +6,9 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * Representa el atril de un jugador: la colección de fichas en su mano.
- *
- * MODIFICADO respecto al original:
- * - Cambiado ArrayList a List en firmas públicas para reducir acoplamiento
- *   con la implementación concreta.
- * - get() retorna List<FichaMostrable> en lugar de ArrayList para no exponer
- *   la implementación subyacente ni permitir modificaciones externas
- *   (se usa unmodifiableList).
- * - Sin importaciones de Swing, AWT ni consola.
- * - (Fase 6) Implementa Serializable: forma parte del estado guardable
- *   de una partida (es referenciado desde Jugador).
+ * Representa el conjunto de fichas que posee un jugador durante la partida.
+ * Permite agregar, consultar y remover fichas, además de exponer una vista
+ * de solo lectura de su contenido.
  */
 public class Atril implements Serializable {
 
@@ -65,7 +57,10 @@ public class Atril implements Serializable {
         }
     }
 
-    /** Retorna una vista de solo lectura del atril como FichaMostrable. */
+    /**
+     * Devuelve una vista de solo lectura de las fichas del atril para evitar
+     * modificaciones externas.
+     */
     public List<FichaMostrable> get() {
         return Collections.unmodifiableList(fichas);
     }

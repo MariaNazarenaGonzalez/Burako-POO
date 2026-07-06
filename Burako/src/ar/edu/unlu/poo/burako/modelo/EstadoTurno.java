@@ -1,14 +1,20 @@
 package ar.edu.unlu.poo.burako.modelo;
 
 /**
- * Estado del turno dentro de una partida de Burako.
- * Sin cambios de comportamiento respecto al original.
+ * Representa las distintas etapas que puede atravesar
+ * el turno de un jugador durante una partida.
  */
 public enum EstadoTurno {
     /** El jugador con el turno debe tomar una ficha (del mazo o del pozo). */
     TOMAR,
-    /** El jugador ya tomó su ficha y puede bajar juegos, apoyar o descartar al pozo. */
+    /**
+     * El jugador ya tomó una ficha y puede realizar
+     * jugadas, apoyar fichas o finalizar su turno.
+     */
     JUGAR,
-    /** La partida ha finalizado (alguien cortó). */
+    /**
+     * Indica que la partida terminó luego de que un
+     * jugador cumpliera las condiciones de corte.
+     */
     PARTIDA_TERMINADA
 }

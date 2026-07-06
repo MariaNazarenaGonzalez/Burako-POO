@@ -1,9 +1,12 @@
 package ar.edu.unlu.poo.burako.modelo;
 
 /**
- * Eventos que el modelo emite hacia los observadores.
- * Sin cambios respecto al original; mantener estos nombres preserva compatibilidad
- * con el Controlador y las Vistas existentes.
+ * Enumeración que contiene todos los eventos que el
+ * modelo puede notificar a sus observadores durante
+ * el desarrollo de una partida.
+ *
+ * Cada constante representa el resultado exitoso o
+ * fallido de una acción realizada por un jugador.
  */
 public enum Eventos {
     tomarMazo_NO_exitoso,

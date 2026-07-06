@@ -3,17 +3,19 @@ package ar.edu.unlu.poo.burako.modelo;
 import java.util.List;
 
 /**
- * Instantánea inmutable del contexto de una jugada, usada por ReglasDeJuego.
+ * Representa una vista inmutable del estado de una jugada.
  *
- * ReglasDeJuego no recibe referencias directas a Jugador, Pozo, Mazo ni Atril.
- * Recibe un ContextoJugada con exactamente los datos que necesita para validar,
- * sin depender de estructuras internas.
+ * Esta clase reúne toda la información necesaria para que las
+ * reglas del juego puedan validar una acción sin acceder
+ * directamente a las estructuras internas de la partida.
  *
- * Esto permite:
- * - Testear cada regla de forma aislada con datos construidos ad-hoc.
- * - Que ReglasDeJuego sea independiente de la implementación de Jugador o Burako.
- * - Que en el futuro un cliente RMI construya un ContextoJugada con datos
- *   recibidos por red y lo valide localmente sin tocar el modelo del servidor.
+ * Al ser inmutable, garantiza que los datos utilizados durante
+ * la validación no puedan modificarse accidentalmente mientras
+ * se evalúa una jugada.
+ *
+ * Su construcción se realiza mediante el patrón Builder,
+ * permitiendo crear únicamente el contexto necesario para
+ * cada validación.
  */
 public final class ContextoJugada {
 
@@ -65,12 +67,22 @@ public final class ContextoJugada {
     public List<Ficha> getFichasSeleccionadas()   { return fichasSeleccionadas; }
     public TipoJuego   getTipoJuegoDestino()      { return tipoJuegoDestino; }
 
-    // ── Builder ───────────────────────────────────────────────────────────────
+    /**
+     * Devuelve un constructor de ContextoJugada utilizando
+     * el patrón Builder.
+     */
 
     public static Builder builder() {
         return new Builder();
     }
 
+    /**
+     * Constructor incremental de objetos ContextoJugada.
+     *
+     * Permite establecer únicamente los datos necesarios para
+     * representar el contexto de una jugada antes de crear
+     * una instancia inmutable.
+     */
     public static final class Builder {
         private int         turnoActual           = 0;
         private EstadoTurno estadoTurno           = EstadoTurno.TOMAR;
@@ -97,7 +109,11 @@ public final class ContextoJugada {
         public Builder hayMuertosDisponibles(boolean v)    { hayMuertosDisponibles = v; return this; }
         public Builder fichasSeleccionadas(List<Ficha> v)  { fichasSeleccionadas = v; return this; }
         public Builder tipoJuegoDestino(TipoJuego v)       { tipoJuegoDestino = v; return this; }
-
+        /**
+         * Construye una instancia inmutable de ContextoJugada.
+         *
+         * @return contexto de jugada completamente inicializado.
+         */
         public ContextoJugada build() {
             return new ContextoJugada(this);
         }

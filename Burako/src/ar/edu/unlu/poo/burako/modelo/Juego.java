@@ -5,21 +5,17 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * Contenedor de fichas que forman un juego en la mesa.
+ * Representa un juego formado por un conjunto de fichas sobre la mesa.
  *
- * Responsabilidad única: almacenar las fichas de un juego, mantener su tipo
- * actualizado y calcular su puntaje individual.
+ * Un juego puede corresponder a una escalera, un grupo o una canasta,
+ * según la combinación de fichas que lo compongan.
  *
- * NO valida reglas de negocio (eso es ReglasDeJuego).
- * NO clasifica por sí mismo (delega a ValidadorFormacion).
- * NO decide si el jugador puede bajar o apoyar (eso es ReglasDeJuego).
+ * Esta clase administra las fichas que pertenecen al juego, mantiene
+ * actualizado su tipo y calcula el puntaje obtenido de acuerdo con
+ * las reglas del Burako.
  *
- * calcularPuntaje() aplica los bonos de Burako limpio (+200) y sucio (+100)
- * ya que son propiedades del juego en sí, no del jugador.
- *
- * MODIFICADO (Fase 6 - Persistencia): implementa Serializable; las fichas
- * bajadas a la mesa forman parte del estado guardable de una partida
- * (es referenciado desde Jugador).
+ * La validación de las jugadas y la formación de nuevos juegos son
+ * responsabilidad de otras clases del modelo.
  */
 public class Juego implements JuegoMostrable {
 
@@ -28,12 +24,15 @@ public class Juego implements JuegoMostrable {
     private final List<Ficha> fichas;
     private TipoJuego         tipo;
 
-    /**
-     * Crea un juego a partir de las fichas dadas.
-     * ValidadorFormacion ya fue consultado por ReglasDeJuego antes de esta llamada;
-     * aquí se vuelve a clasificar para inicializar el tipo interno.
+   /**
+     * Crea un nuevo juego a partir de las fichas indicadas.
      *
-     * @throws Exception si la combinación no es válida (defensa ante uso incorrecto).
+     * Durante la construcción se determina automáticamente el tipo
+     * de juego correspondiente.
+     *
+     * @param fichas fichas que formarán el juego.
+     * @throws Exception si la combinación de fichas no representa
+     *         un juego válido.
      */
     public Juego(List<Ficha> fichas) throws Exception {
         this.fichas = new ArrayList<>(fichas);
@@ -41,12 +40,21 @@ public class Juego implements JuegoMostrable {
     }
 
     // ── JuegoMostrable ─────────────────────────────────────────────────────────
-
+    /**
+     * Obtiene una vista de solo lectura de las fichas que
+     * componen el juego.
+     *
+     * @return lista inmodificable de fichasMostrables.
+     */
     @Override
     public List<FichaMostrable> getFichas() {
         return Collections.unmodifiableList(fichas);
     }
-
+    /**
+     * Obtiene el tipo actual del juego.
+     *
+     * @return tipo del juego.
+     */
     @Override
     public TipoJuego getTipo() {
         return tipo;
@@ -55,10 +63,16 @@ public class Juego implements JuegoMostrable {
     // ── Operaciones internas (invocadas solo por Jugador) ──────────────────────
 
     /**
-     * Agrega una ficha en la posición {@code pos} (1-based).
-     * Precondición: ReglasDeJuego.validarApoyarJuego() aprobó la operación.
-     * Si una ficha real reemplaza a un comodín en una escalera, el comodín
-     * se desplaza al final del juego.
+     * Agrega una ficha al juego en la posición indicada.
+     *
+     * Si la inserción produce una canasta, el tipo del juego
+     * se actualiza automáticamente. En escaleras, cuando una
+     * ficha reemplaza a un comodín, este se desplaza al final
+     * del juego según las reglas del Burako.
+     *
+     * @param ficha ficha que se agregará.
+     * @param pos posición de inserción (comenzando en 1).
+     * @throws Exception si la posición indicada es inválida.
      */
     void agregar(Ficha ficha, int pos) throws Exception {
         if (pos < 1 || pos > fichas.size() + 1) {
@@ -77,7 +91,8 @@ public class Juego implements JuegoMostrable {
                 && idx < fichas.size()
                 && fichas.get(idx).esComodin()
                 && !ficha.esComodin();
-
+        // Si una ficha reemplaza un comodín en una escalera,
+        // el comodín pasa al final del juego.
         if (desplazaComodin) {
             Ficha comodinDesplazado = fichas.remove(idx);
             fichas.add(idx, ficha);
@@ -91,23 +106,34 @@ public class Juego implements JuegoMostrable {
         }
     }
 
-    /** Copia interna de las fichas (para que CalculadorPuntaje/ReglasDeJuego operen sin cast). */
+    /**
+     * Obtiene una vista inmodificable de las fichas del juego.
+     *
+     * Este método es utilizado internamente por el modelo.
+     *
+     * @return lista de fichas del juego.
+     */
     List<Ficha> getFichasInternas() {
         return Collections.unmodifiableList(fichas);
     }
 
-    /** Cantidad de fichas actuales en el juego. */
+    /**
+     * Obtiene la cantidad de fichas que forman el juego.
+     *
+     * @return cantidad de fichas.
+     */
     int cantFichas() {
         return fichas.size();
     }
 
     /**
-     * Puntaje de este juego, incluyendo bono de Burako.
+     * Calcula el puntaje total del juego.
      *
-     * Burako limpio (canasta pura, 7+ fichas sin comodín negro ni N2 fuera
-     * de lugar): +200 puntos extra.
-     * Burako sucio (canasta impura, 7+ fichas con comodín): +100 puntos extra.
-     * Juegos sin canasta: solo valor de fichas.
+     * El resultado corresponde a la suma del valor de todas
+     * las fichas y, cuando corresponde, incluye la bonificación
+     * otorgada por formar una canasta limpia o una canasta sucia.
+     *
+     * @return puntaje total del juego.
      */
     int calcularPuntaje() {
         int valorFichas = fichas.stream().mapToInt(Ficha::getValor).sum();

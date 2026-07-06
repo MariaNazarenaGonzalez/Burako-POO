@@ -6,32 +6,17 @@ import java.rmi.RemoteException;
 import java.util.List;
 
 /**
- * Interfaz pública del modelo principal de Burako.
+ * Define la interfaz pública del modelo del juego Burako.
  *
- * NUEVA - Introduce el Principio de Inversión de Dependencias (DIP):
- * el Controlador ahora depende de esta abstracción en lugar de la
- * clase concreta Burako. Esto permite:
- * - Sustituir la implementación por un stub RMI en el futuro.
- * - Testear el Controlador con un mock sin instanciar el modelo completo.
- * - Definir claramente qué operaciones el Controlador puede invocar.
+ * A través de esta interfaz el controlador puede consultar el
+ * estado de la partida y ejecutar las acciones permitidas por
+ * las reglas del juego, sin depender de la implementación
+ * concreta del modelo.
  *
- * Solo expone operaciones de dominio y tipos de la capa modelo
- * (FichaMostrable, JuegoMostrable, Eventos, EstadoTurno, ResultadoJugador).
- * Nunca expone Ficha, Jugador, Juego ni ningún tipo concreto del modelo.
- *
- * MODIFICADO (Fase 9 - Integración RMIMVC):
- * - Extiende IObservableRemoto (librería RMIMVC de la cátedra) en lugar de
- *   nuestra interfaz local Observado. Es el cambio obligatorio que documenta
- *   el README de la librería: "Crear interface con los métodos públicos del
- *   modelo y hacer que la interfaz extienda de IObservableRemoto". Como
- *   IObservableRemoto ya declara agregarObservador/removerObservador/
- *   notificarObservadores, IBurako conserva exactamente el mismo rol que
- *   tenía Observado (registrar y notificar observadores), solo que ahora
- *   con soporte para invocación remota.
- * - Cada método declara "throws RemoteException": al ejecutarse el modelo
- *   en el servidor y ser invocado a través de la red, cualquier llamada
- *   puede fallar por motivos de comunicación. Es un requisito mecánico de
- *   RMI, no un cambio de comportamiento del dominio.
+ * La interfaz también permite notificar cambios de estado a los
+ * observadores mediante el mecanismo proporcionado por RMIMVC,
+ * facilitando tanto la ejecución local como remota de la
+ * aplicación.
  */
 public interface IBurako extends IObservableRemoto {
 
@@ -44,18 +29,16 @@ public interface IBurako extends IObservableRemoto {
      * Asigna los nombres de todos los jugadores de la partida (2 o 4),
      * en orden de índice. Si la lista es más corta que la cantidad real
      * de jugadores, los índices restantes conservan su nombre por defecto.
-     *
-     * NUEVO (Fase 10 - Soporte 2 o 4 jugadores).
      */
     void setNombres(List<String> nombres) throws RemoteException;
 
-    /** Retorna la cantidad de jugadores de esta partida (2 o 4). NUEVO (Fase 10). */
+    /** Retorna la cantidad de jugadores de esta partida (2 o 4). */
     int getCantidadJugadores() throws RemoteException;
 
     /**
      * Retorna el índice de equipo (0 o 1) del jugador dado. Con 2 jugadores,
      * cada uno es su propio equipo. Con 4, los jugadores 0 y 2 comparten
-     * equipo, y 1 y 3 comparten el otro. NUEVO (Fase 10).
+     * equipo, y 1 y 3 comparten el otro..
      */
     int getEquipo(int indiceJugador) throws RemoteException;
 
