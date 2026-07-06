@@ -60,7 +60,6 @@ public class VistaGrafica extends JFrame implements VistaJuego {
     private JButton   btnBajarJuego;
     private JButton   btnApoyarJuego;
     private JButton   btnAgregarPozo;
-    private JButton   btnMenu;
     private JTextArea txtEventos;
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -129,14 +128,12 @@ public class VistaGrafica extends JFrame implements VistaJuego {
         btnBajarJuego  = crearBoton("Bajar juego");
         btnApoyarJuego = crearBoton("Apoyar ficha");
         btnAgregarPozo = crearBoton("Tirar al pozo");
-        btnMenu        = crearBoton("Menú");
 
         JPanel botones = new JPanel(new GridLayout(4, 1, 0, 8));
         botones.setBackground(C_LATERAL);
         botones.add(btnBajarJuego);
         botones.add(btnApoyarJuego);
         botones.add(btnAgregarPozo);
-        botones.add(btnMenu);
 
         col.add(panelMazo, BorderLayout.NORTH);
         col.add(botones,   BorderLayout.SOUTH);
@@ -246,10 +243,6 @@ public class VistaGrafica extends JFrame implements VistaJuego {
         btnBajarJuego.addActionListener(e -> bajarJuegoSeleccionado());
         btnApoyarJuego.addActionListener(e -> apoyarFichaSeleccionada());
         btnAgregarPozo.addActionListener(e -> agregarFichaAlPozo());
-        btnMenu.addActionListener(e       -> JOptionPane.showMessageDialog(this,
-                "Turno: " + controlador.getNombre(controlador.getTurnoActual())
-                + "\nEstado: " + controlador.getEstadoTurno(),
-                "Estado", JOptionPane.INFORMATION_MESSAGE));
     }
 
     private void bajarJuegoSeleccionado() {
