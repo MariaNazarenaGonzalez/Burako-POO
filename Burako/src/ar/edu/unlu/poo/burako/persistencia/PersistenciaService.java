@@ -9,15 +9,11 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * Fachada única de acceso a la persistencia (equivalente al
- * "PersistenciaService" sugerido en la consigna).
+ * Centraliza las operaciones de persistencia de la aplicación.
  *
- * Coordina {@link RepositorioUsuarios}, {@link RepositorioRanking} y
- * {@link RepositorioPartidas} sin exponer sus detalles internos a quien
- * la usa (Main, o un futuro Observador/Controlador). Es el único punto del
- * proyecto que conoce una ruta base de archivos concreta: el modelo
- * (Burako y colaboradores) permanece totalmente ignorante del sistema de
- * archivos, tal como exige la consigna.
+ * Coordina el acceso a los repositorios de usuarios, partidas y ranking,
+ * ofreciendo una interfaz unificada para registrar usuarios, guardar y
+ * recuperar partidas, actualizar estadísticas y consultar el ranking.
  */
 public class PersistenciaService {
 
@@ -25,7 +21,10 @@ public class PersistenciaService {
     private final IRepositorioRanking  repositorioRanking;
     private final IRepositorioPartidas repositorioPartidas;
 
-    /** @param directorioBase carpeta raíz donde se guardarán usuarios.dat, ranking.dat y partidas/. */
+    /**
+     * Inicializa el servicio utilizando un directorio base para almacenar
+     * toda la información persistente.
+     */
     public PersistenciaService(String directorioBase) {
         File base = new File(directorioBase);
         this.repositorioUsuarios = new RepositorioUsuarios(new File(base, "usuarios.dat"));
@@ -33,7 +32,10 @@ public class PersistenciaService {
         this.repositorioPartidas = new RepositorioPartidas(new File(base, "partidas"));
     }
 
-    /** Constructor para inyectar repositorios alternativos (tests, mocks). */
+    /**
+     * Inicializa el servicio utilizando implementaciones de repositorios
+     * proporcionadas externamente.
+     */
     public PersistenciaService(IRepositorioUsuarios repositorioUsuarios,
                                 IRepositorioRanking repositorioRanking,
                                 IRepositorioPartidas repositorioPartidas) {
@@ -44,7 +46,10 @@ public class PersistenciaService {
 
     // ── Usuarios ─────────────────────────────────────────────────────────────
 
-    /** Retorna el usuario existente con ese nombre, o lo registra si todavía no existe. */
+    /**
+     * Obtiene un usuario existente o registra uno nuevo cuando el nombre
+     * aún no se encuentra almacenado.
+     */
     public Usuario obtenerOcrearUsuario(String nombre) {
         return repositorioUsuarios.buscarPorNombre(nombre)
                 .orElseGet(() -> repositorioUsuarios.registrar(nombre));
@@ -57,17 +62,16 @@ public class PersistenciaService {
     // ── Partidas ─────────────────────────────────────────────────────────────
 
     /**
-     * Guarda (o sobrescribe) el estado completo de una partida en curso.
-     * @param idPartida id a reutilizar (partida ya guardada antes), o null para generar uno nuevo.
-     * @return el id bajo el cual quedó guardada la partida.
+     * Guarda el estado de una partida asociada a dos usuarios y devuelve
+     * el identificador con el que fue almacenada.
      */
     public String guardarPartida(String idPartida, Burako estado, Usuario usuario1, Usuario usuario2) {
         return guardarPartida(idPartida, estado, List.of(usuario1, usuario2));
     }
 
     /**
-     * Guarda (o sobrescribe) el estado completo de una partida de 2 o 4
-     * usuarios. NUEVO (Fase 10 - Soporte 2 o 4 jugadores).
+     * Guarda el estado de una partida asociada a los usuarios indicados y
+     * devuelve el identificador correspondiente.
      */
     public String guardarPartida(String idPartida, Burako estado, List<Usuario> usuarios) {
         String id = idPartida != null ? idPartida : UUID.randomUUID().toString();
@@ -76,9 +80,8 @@ public class PersistenciaService {
     }
 
     /**
-     * Recupera el estado exacto de una partida guardada (turno, manos, mazo,
-     * descarte, combinaciones bajadas y muertos), lista para continuar
-     * normalmente desde donde quedó.
+     * Recupera el estado almacenado de una partida para continuarla desde
+     * el punto en que fue guardada.
      */
     public Burako continuarPartida(String idPartida) {
         return repositorioPartidas.buscarPorId(idPartida)
@@ -86,16 +89,16 @@ public class PersistenciaService {
                 .getEstado();
     }
 
-    /** Lista las partidas guardadas en las que participa el usuario dado. */
+    /**
+     * Devuelve las partidas guardadas en las que participa el usuario indicado.
+     */
     public List<PartidaGuardada> listarPartidasDe(Usuario usuario) {
         return repositorioPartidas.listarPorUsuario(usuario.getId());
     }
 
     /**
-     * Lista todas las partidas guardadas existentes, sin filtrar por usuario.
-     * Método de consulta agregado para la opción "Cargar partida" del menú
-     * gráfico: permite ofrecer todas las partidas disponibles sin exigir
-     * que el usuario se identifique primero.
+    /**
+     * Devuelve todas las partidas almacenadas.
      */
     public List<PartidaGuardada> listarPartidasGuardadas() {
         return repositorioPartidas.listarTodas();
@@ -104,27 +107,16 @@ public class PersistenciaService {
     // ── Cierre de partida y ranking ─────────────────────────────────────────
 
     /**
-     * Aplica los resultados finales de una partida terminada (ver
-     * {@code Eventos.partida_terminada}) a las estadísticas de ambos
-     * usuarios y al ranking, y elimina el guardado intermedio de la
-     * partida, ya que dejó de estar "en curso".
-     *
-     * MODIFICADO (Fase 9 - RMIMVC): declara "throws RemoteException" porque
-     * internamente llama a estado.getResultados(), método de IBurako que
-     * ahora puede lanzar esa excepción. Esta clase se sigue ejecutando
-     * exclusivamente en el servidor (la llama ObservadorPersistencia,
-     * registrado únicamente allí), por lo que no hay ningún cambio de
-     * responsabilidad: sigue siendo persistencia server-side pura.
+     * Actualiza la información persistente correspondiente a una partida
+     * finalizada entre dos usuarios.
      */
     public void finalizarPartida(Burako estado, Usuario usuario1, Usuario usuario2, String idPartidaGuardada) throws RemoteException {
         finalizarPartida(estado, List.of(usuario1, usuario2), idPartidaGuardada);
     }
 
     /**
-     * Aplica los resultados finales de una partida de 2 o 4 usuarios.
-     * NUEVO (Fase 10 - Soporte 2 o 4 jugadores): itera sobre la lista
-     * completa de usuarios en lugar de asumir exactamente 2, aplicando a
-     * cada uno el ResultadoJugador correspondiente a su mismo índice.
+     * Actualiza las estadísticas de los participantes, el ranking y elimina
+     * el registro de la partida guardada cuando corresponde.
      */
     public void finalizarPartida(Burako estado, List<Usuario> usuarios, String idPartidaGuardada) throws RemoteException {
         List<ResultadoJugador> resultados = estado.getResultados();
@@ -139,7 +131,10 @@ public class PersistenciaService {
             repositorioPartidas.eliminar(idPartidaGuardada);
         }
     }
-
+    /**
+     * Registra el resultado obtenido por un usuario y actualiza su información
+     * persistente.
+     */
     private void aplicarResultado(Usuario usuario, ResultadoJugador resultado) {
         usuario.getEstadisticas().registrarResultado(resultado.esGanador(), resultado.getPuntaje());
         repositorioUsuarios.guardar(usuario);

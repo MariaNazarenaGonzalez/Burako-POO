@@ -41,10 +41,8 @@ public class VistaGrafica extends JFrame implements VistaJuego {
     private final int          miTurno;
 
     /**
-     * Preserva el ORDEN DE CLIC del usuario.
-     * LinkedHashSet garantiza: sin duplicados + orden de inserción.
-     * Esto es esencial para que una escalera seleccionada en orden
-     * no-consecutivo llegue al modelo en el orden correcto.
+     * Almacena las fichas seleccionadas respetando el orden en que fueron
+     * elegidas y evitando elementos duplicados.
      */
     private final Set<Integer> seleccion = new LinkedHashSet<>();
 
@@ -110,7 +108,7 @@ public class VistaGrafica extends JFrame implements VistaJuego {
         col.setPreferredSize(new Dimension(130, 0));
         col.setBorder(new EmptyBorder(14, 10, 14, 10));
 
-        // Ficha-mazo clickable (sin botón duplicado)
+        // Área interactiva utilizada para tomar una ficha del mazo.
         panelMazo = new JPanel() {
             @Override protected void paintComponent(Graphics g) {
                 super.paintComponent(g);
@@ -122,7 +120,7 @@ public class VistaGrafica extends JFrame implements VistaJuego {
         panelMazo.setToolTipText("Clic para tomar del mazo");
         panelMazo.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
 
-        btnTomarMazo = new JButton(); // invisible — solo para controlar enabled
+        btnTomarMazo = new JButton(); // Se utiliza únicamente para administrar el estado de disponibilidad.
         btnTomarMazo.setVisible(false);
 
         btnBajarJuego  = crearBoton("Bajar juego");
@@ -359,15 +357,10 @@ public class VistaGrafica extends JFrame implements VistaJuego {
         panelAtril.repaint();
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    //  FichaPanel — componente de ficha totalmente autodibujado
-    //
-    //  La clave del fix de selección: NO hay componentes hijos ni layout null.
-    //  Todo (número, color, borde, fondo, número de orden) se dibuja en un
-    //  único paintComponent(). Cuando cambia seleccion, basta llamar
-    //  repaint() sobre este panel y Swing lo redibuja completo sin ambigüedad.
-    // ─────────────────────────────────────────────────────────────────────────
-
+    /**
+     * Componente gráfico encargado de representar una ficha del juego y
+     * gestionar su selección cuando pertenece al atril del jugador.
+     */
     private class FichaPanel extends JPanel {
         private final FichaMostrable ficha;
         private final int            idx;   // -1 si no es del atril
@@ -384,8 +377,7 @@ public class VistaGrafica extends JFrame implements VistaJuego {
                     @Override public void mouseClicked(MouseEvent e) {
                         if (seleccion.contains(idx)) seleccion.remove(idx);
                         else                          seleccion.add(idx);
-                        // Repintar TODOS los paneles del atril para actualizar
-                        // números de orden (si desmarco el 1º, el 2º pasa a ser 1º)
+                        // Actualiza la representación de todas las fichas para reflejar el nuevo orden de selección.
                         for (Component c : panelAtril.getComponents()) c.repaint();
                     }
                 });
@@ -514,7 +506,7 @@ public class VistaGrafica extends JFrame implements VistaJuego {
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    //  Helpers
+    //  Metodos Auxiliares
     // ─────────────────────────────────────────────────────────────────────────
 
     private Color colorDeFicha(FichaMostrable f) {

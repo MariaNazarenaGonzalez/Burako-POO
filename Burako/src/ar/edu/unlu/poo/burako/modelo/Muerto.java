@@ -4,16 +4,11 @@ import java.io.Serializable;
 import java.util.List;
 
 /**
- * Representa un "muerto" en Burako: un conjunto cerrado de 11 fichas que un
- * jugador puede tomar bajo ciertas condiciones.
+ * Representa el muerto utilizado durante una partida de Burako.
  *
- * MODIFICADO respecto al original:
- * - tomar() ya no retorna null cuando está vacío; lanza IllegalStateException
- *   porque un Muerto nunca debería tomarse dos veces (el control es
- *   responsabilidad de GestorMuertos). Elimina null checks en el llamador.
- * - estaDisponible() agregado para permitir consulta sin efecto secundario.
- * - (Fase 6) Implementa Serializable: forma parte del estado guardable
- *   de una partida (es referenciado desde GestorMuertos).
+ * Un muerto es un conjunto de fichas reservado para un equipo,
+ * que puede incorporarse al juego cuando se cumplen las
+ * condiciones establecidas por el reglamento.
  */
 public class Muerto implements Serializable {
 
@@ -21,14 +16,22 @@ public class Muerto implements Serializable {
 
     private final List<Ficha> fichas;
     private boolean tomado = false;
-
+    /**
+     * Crea un muerto con las fichas indicadas.
+     *
+     * @param fichas fichas que conforman el muerto.
+     */
     public Muerto(List<Ficha> fichas) {
         this.fichas = fichas;
     }
 
     /**
-     * Retorna las fichas de este muerto y lo marca como tomado.
-     * @throws IllegalStateException si ya fue tomado.
+     * Entrega las fichas del muerto y lo marca como utilizado.
+     *
+     * Un muerto solo puede ser tomado una única vez.
+     *
+     * @return fichas que forman el muerto.
+     * @throws IllegalStateException si el muerto ya fue utilizado.
      */
     public List<Ficha> tomar() {
         if (tomado) {

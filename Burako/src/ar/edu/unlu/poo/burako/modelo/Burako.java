@@ -301,7 +301,7 @@ public class Burako extends ObservableRemoto implements IBurako, Serializable {
         return jugadores.get(indice);
     }
 
-    // ── Helpers privados ──────────────────────────────────────────────────────
+    // ── Metodos auxiliares  privados ──────────────────────────────────────────────────────
 
     /**
      * Construye el contexto base con turno actual y estado del jugador indicado.

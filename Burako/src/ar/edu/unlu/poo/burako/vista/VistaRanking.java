@@ -8,17 +8,14 @@ import java.awt.*;
 import java.util.List;
 
 /**
- * Diálogo gráfico de solo consulta que muestra el ranking actual dentro de
- * un JTable envuelto en un JScrollPane.
- *
- * Responsabilidad única: renderizar una lista de {@link EntradaRanking} ya
- * calculada y ordenada por {@code PersistenciaService.obtenerRanking()}.
- * No consulta la persistencia por sí mismo ni ordena ni recalcula nada;
- * solo recibe los datos listos para mostrar (los recibe {@link MenuPrincipal}).
- *
- * Es estrictamente de solo lectura: la tabla no es editable
- * (isCellEditable siempre retorna false).
- */
+
+* Ventana que muestra el ranking de jugadores en forma de tabla.
+*
+* Recibe una colección de resultados ya preparada y la presenta en una
+* tabla de solo lectura, permitiendo consultar el historial de puntajes
+* y estadísticas de cada jugador.
+*/
+
 public class VistaRanking extends JDialog {
 
     private static final String[] COLUMNAS = {

@@ -6,37 +6,39 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * Representa el pozo de descarte de Burako.
- * Las fichas descartadas por los jugadores se acumulan aquí.
- * Tomar el pozo retira TODAS las fichas que contiene.
+ * Representa el pozo de descarte de la partida.
  *
- * MODIFICADO respecto al original:
- * - Cambiado ArrayList a List en firmas públicas.
- * - get() retorna vista no modificable (unmodifiableList).
- * - estaVacio() agregado para evitar consultar get().isEmpty() en el modelo.
- * - (Fase 6) Implementa Serializable: forma parte del estado guardable
- *   de una partida (es referenciado desde Burako).
+ * Todas las fichas descartadas por los jugadores se almacenan
+ * en este contenedor hasta que algún jugador decide tomar el
+ * pozo completo.
  */
 public class Pozo implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
     private List<Ficha> fichas;
-
+    /**
+     * Crea un pozo inicialmente vacío.
+     */
     public Pozo() {
         fichas = new ArrayList<>();
     }
 
     /**
      * Agrega una ficha al pozo.
+     *
+     * @param ficha ficha que será descartada.
      */
     public void agregar(Ficha ficha) {
         fichas.add(ficha);
     }
 
     /**
-     * Retira todas las fichas del pozo y las retorna.
+     * Retira todas las fichas del pozo.
+     *
      * Después de esta operación el pozo queda vacío.
+     *
+     * @return fichas que contenía el pozo.
      */
     public List<Ficha> tomar() {
         List<Ficha> tomadas = fichas;
@@ -45,7 +47,10 @@ public class Pozo implements Serializable {
     }
 
     /**
-     * Retorna una vista de solo lectura del pozo como FichaMostrable.
+     * Obtiene una vista de solo lectura de las fichas
+     * almacenadas en el pozo.
+     *
+     * @return lista inmodificable de fichas mostrables.
      */
     public List<FichaMostrable> get() {
         return Collections.unmodifiableList(fichas);

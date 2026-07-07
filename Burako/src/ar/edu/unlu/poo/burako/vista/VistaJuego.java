@@ -3,20 +3,16 @@ package ar.edu.unlu.poo.burako.vista;
 import ar.edu.unlu.poo.burako.modelo.Eventos;
 
 /**
- * Contrato de todas las vistas del juego.
- *
- * Las vistas solo muestran información; no contienen lógica de negocio.
- * La actualización siempre ocurre a través del Controlador.
- *
- * MODIFICADO (Fase 4):
- * - Se eliminó mesaje(Exception e). La firma antigua transportaba excepciones
- *   directamente a la vista acoplando capas. Los errores ahora se obtienen
- *   mediante IBurako.getUltimoMensajeError() desde el Controlador.
- */
+* Define las operaciones que debe implementar cualquier vista del juego.
+*
+* Las implementaciones son responsables de representar el estado de la
+* partida y reaccionar a los eventos enviados por el controlador.
+*/
+
 public interface VistaJuego {
-    /** Refresca la representación completa de la mesa. */
+    /** Actualiza todos los elementos visibles de la partida. */
     void mostrarMesa();
 
-    /** Muestra el resultado de un evento del modelo. */
+    /** Procesa un evento generado durante el desarrollo de la partida. */
     void mesaje(Eventos eventos);
 }

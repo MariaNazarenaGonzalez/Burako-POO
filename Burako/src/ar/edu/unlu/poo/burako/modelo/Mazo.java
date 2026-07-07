@@ -6,23 +6,23 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * Representa el mazo de fichas de Burako (106 fichas: 4 colores × 13 números × 2 + 2 comodines).
+ * Representa el mazo de fichas utilizado durante una partida de Burako.
  *
- * MODIFICADO respecto al original:
- * - Eliminados imports de java.awt.Color, java.text.BreakIterator (eran dependencias
- *   de presentación inadvertidas y totalmente innecesarias en el modelo de dominio).
- * - El método fichaColorSig(), que antes vivía en Ficha como método estático de utilidad,
- *   se movió aquí como método privado ya que solo lo usa Mazo para construirse.
- * - Cambiado ArrayList a List en firmas para reducir acoplamiento con la implementación.
- * - (Fase 6) Implementa Serializable: el orden restante del mazo forma parte
- *   del estado guardable de una partida (es referenciado desde Burako).
+ * El mazo está compuesto por todas las fichas del juego, incluyendo
+ * los comodines, y se inicializa automáticamente en orden aleatorio.
+ *
+ * Proporciona las operaciones necesarias para extraer fichas y
+ * consultar si aún quedan elementos disponibles.
  */
 public class Mazo implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
     private final List<Ficha> fichas;
-
+    /**
+     * Crea un mazo completo de Burako y mezcla sus fichas
+     * de forma aleatoria.
+     */
     public Mazo() {
         fichas = new ArrayList<>();
 
@@ -41,7 +41,11 @@ public class Mazo implements Serializable {
     }
 
     /**
-     * Extrae y retorna las primeras {@code cantidad} fichas del mazo.
+     * Extrae la cantidad indicada de fichas desde el comienzo
+     * del mazo.
+     *
+     * @param cantidad cantidad de fichas a retirar.
+     * @return lista con las fichas extraídas.
      */
     public List<Ficha> sacar(int cantidad) {
         List<Ficha> extraidas = new ArrayList<>(fichas.subList(0, cantidad));
@@ -50,8 +54,9 @@ public class Mazo implements Serializable {
     }
 
     /**
-     * Extrae y retorna la primera ficha del mazo.
-     * @return la ficha, o null si el mazo está vacío.
+     * Extrae la primera ficha disponible del mazo.
+     *
+     * @return ficha extraída o {@code null} si el mazo está vacío.
      */
     public Ficha sacarFicha() {
         if (fichas.isEmpty()) return null;
@@ -63,9 +68,14 @@ public class Mazo implements Serializable {
         return fichas.isEmpty();
     }
 
-    // ── Helpers privados ───────────────────────────────────────────────────────
+    // ── Metodos Auxiliates privados ───────────────────────────────────────────────────────
 
-    /** Los 13 números base (sin comodín). */
+    /**
+     * Obtiene los valores numéricos utilizados para construir
+     * el mazo, excluyendo el comodín.
+     *
+     * @return arreglo con los números base.
+     */
     private static FichaNumero[] numerosBase() {
         FichaNumero[] todos = FichaNumero.values();
         FichaNumero[] base  = new FichaNumero[todos.length - 1]; // excluye Comodin

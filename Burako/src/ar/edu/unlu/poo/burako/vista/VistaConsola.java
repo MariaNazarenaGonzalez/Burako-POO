@@ -15,20 +15,12 @@ import java.awt.event.ActionEvent;
 import java.util.List;
 
 /**
- * Vista consola del juego Burako.
+ * Implementación de la vista en modo consola para el juego Burako.
  *
- * CORRECCIÓN (Fase 5 → compilación):
- * Los campos de UI (panelPrincipal, txtSalida, etc.) eran inicializados por el
- * método generado por IntelliJ GUI Designer a partir del archivo .form.
- * Al reescribir la clase programáticamente ese método desapareció, y
- * setContentPane(panelPrincipal) recibía null.
- * Se agrega crearUI() que construye los componentes antes de setContentPane.
- * El layout replica fielmente el definido en VistaConsola.form.
- *
- * INVARIANTES de las fases anteriores: intactos.
- * - No contiene lógica de dominio.
- * - No valida reglas del juego.
- * - El turno se consulta al controlador, no se calcula aquí.
+ * Presenta el estado de la partida mediante una interfaz basada en texto,
+ * interpreta las acciones ingresadas por el usuario y las delega al
+ * controlador, manteniendo la actualización de la información mostrada
+ * durante el desarrollo de la partida.
  */
 public class VistaConsola extends JFrame implements VistaJuego {
 
@@ -42,7 +34,7 @@ public class VistaConsola extends JFrame implements VistaJuego {
     private JButton     btnEnter;
     private JScrollPane scroll;
 
-    // ── Estado de la máquina de estados de la consola ─────────────────────────
+    // ── Estado utilizado para controlar el flujo de interacción con el usuario. ──────
     private EstadoVistaConsola estado;
     private int[]              listafichas = {};
     private int                f;
@@ -52,7 +44,6 @@ public class VistaConsola extends JFrame implements VistaJuego {
         this.controlador = controlador;
         this.miTurno     = turno;
 
-        // crearUI() DEBE preceder a setContentPane; construye panelPrincipal.
         crearUI();
 
         setTitle("Burako - " + controlador.getNombre(turno));
@@ -68,11 +59,8 @@ public class VistaConsola extends JFrame implements VistaJuego {
     // ── Construcción de la UI (reemplaza el .form de IntelliJ) ───────────────
 
     /**
-     * Construye la interfaz programáticamente.
-     * Layout equivalente al definido en VistaConsola.form:
-     *   - GridLayout 2 filas × 1 columna con margen
-     *   - Fila 0: scroll con JTextPane (salida de texto coloreado)
-     *   - Fila 1: campo de texto + botón Enter
+     * Inicializa y organiza los componentes gráficos que conforman
+     * la interfaz de la vista en consola.
      */
     private void crearUI() {
         panelPrincipal = new JPanel(new BorderLayout(4, 4));
@@ -105,10 +93,10 @@ public class VistaConsola extends JFrame implements VistaJuego {
             txtEntrada.setText("");
         });
 
-        // Enter en el campo de texto dispara el botón
+        // Permite enviar la entrada presionando Enter.
         txtEntrada.addActionListener(e -> btnEnter.doClick());
 
-        // Enter global en la ventana también lo dispara
+        // Asocia la tecla Enter con la acción principal de la interfaz.
         btnEnter.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW)
                 .put(KeyStroke.getKeyStroke("ENTER"), "buttonPressed");
         btnEnter.getActionMap().put("buttonPressed", new AbstractAction() {
@@ -293,13 +281,10 @@ public class VistaConsola extends JFrame implements VistaJuego {
     }
 
     // ── VistaJuego ────────────────────────────────────────────────────────────
-
+    
     /**
-     * MODIFICADO (Fase 10 - Soporte 2 o 4 jugadores): antes calculaba un
-     * único "rival" con (miTurno + 1) % 2, válido solo para 2 jugadores.
-     * Ahora itera sobre TODOS los demás jugadores (1 con 2, 3 con 4),
-     * mostrando el tablero de cada uno por separado y, con 4 jugadores,
-     * indicando si es compañero de equipo o rival.
+     * Muestra el estado actual de la partida, incluyendo los juegos de cada
+     * jugador, el contenido del pozo, el atril propio y el turno vigente.
      */
     @Override
     public void mostrarMesa() {
@@ -390,7 +375,7 @@ public class VistaConsola extends JFrame implements VistaJuego {
         }
     }
 
-    // ── Helpers ───────────────────────────────────────────────────────────────
+    // ── Metodos Auxiliares ───────────────────────────────────────────────────────────────
 
     private String getNombre(int turno) {
         return controlador.getNombre(turno);
@@ -410,7 +395,9 @@ public class VistaConsola extends JFrame implements VistaJuego {
             vertical.setValue(vertical.getMaximum());
         });
     }
-
+    /**
+     * Escribe texto utilizando el color asociado a una ficha del juego.
+     */
     public void printColor(String texto, String color) {
         StyledDocument doc = txtSalida.getStyledDocument();
         SimpleAttributeSet attrs = new SimpleAttributeSet();
@@ -428,11 +415,15 @@ public class VistaConsola extends JFrame implements VistaJuego {
         }
         scrollToBottom();
     }
-
+    /**
+     * Escribe texto utilizando el color predeterminado.
+     */
     public void print(String texto) {
         printColor(texto, "Negro");
     }
-
+    /**
+     * Escribe una línea de texto y agrega un salto de línea al final.
+     */
     private void println(String string) {
         print(string + "\n");
     }

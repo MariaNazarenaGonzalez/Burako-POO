@@ -10,46 +10,15 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * Controlador: intermediario entre Modelo y Vista.
- *
- * MODIFICADO (Fase 4):
- * - El campo y constructor ahora dependen de IBurako (no de Burako concreto).
- *   Principio de Inversión de Dependencias: el controlador desconoce la implementación.
- * - Se eliminó notificar(Eventos, Exception): corresponde a la firma antigua.
- *   Los mensajes de error se obtienen con burako.getUltimoMensajeError().
- * - Se eliminaron getJuegos(), getAtril(), getNombre(), cantJuegos() que accedían
- *   a burako.getJugador() — método concreto ausente en IBurako.
- *   Reemplazados por llamadas directas a los métodos de IBurako.
- *
- * MODIFICADO (Fase 9 - Integración RMIMVC):
- * - Implementa IControladorRemoto (librería RMIMVC de la cátedra) en lugar
- *   de nuestra interfaz local Observador. IControladorRemoto extiende
- *   IObservadorRemoto y agrega setModeloRemoto(), tal como indica el README
- *   de la librería: "Hacer que el controlador implemente IControladorRemoto.
- *   Cambiar el método de notificación por actualizar(). Implementar
- *   setModeloRemoto() guardando el modelo remoto".
- * - notificar(Eventos) se renombra a actualizar(IObservableRemoto, Object)
- *   por exigencia de la interfaz de la librería; el CUERPO del método
- *   (la lógica de qué hacer ante una notificación) es exactamente el mismo
- *   que antes, solo cambia la firma y se castea el Object recibido a Eventos.
- * - El campo burako ya no es final: se asigna en setModeloRemoto() cuando
- *   el Cliente RMIMVC conecta con el servidor, no en el constructor.
- *   Se agrega un constructor sin argumentos (usado por AppCliente) además
- *   del constructor existente (se conserva para no romper compatibilidad).
- * - Ya no se llama manualmente a burako.agregarObservador(this): la
- *   librería registra automáticamente al controlador como observador
- *   remoto dentro de Cliente.iniciar(controlador).
- * - Cada llamada al modelo ahora puede lanzar RemoteException (la
- *   comunicación con el servidor puede fallar). Se captura DENTRO del
- *   Controlador para que la Vista (VistaGrafica/VistaConsola) no necesite
- *   ningún cambio: sus firmas de método siguen retornando exactamente los
- *   mismos tipos que antes, sin excepciones chequeadas nuevas.
- *
- * Invariantes (sin cambios):
- * - El controlador NO contiene reglas del juego.
- * - El controlador NO conoce implementaciones concretas del modelo.
- * - Toda actualización de la vista ocurre desde aquí, al recibir un evento.
- */
+
+* Actúa como intermediario entre el modelo y la vista.
+*
+* Recibe las acciones realizadas por el usuario, las delega al modelo y
+* actualiza la vista cuando recibe notificaciones de cambios en el estado
+* de la partida. También encapsula el manejo de errores de comunicación
+* con el modelo remoto para evitar que la vista deba gestionarlos.
+  */
+
 public class Controlador implements IControladorRemoto {
 
     private IBurako burako;
@@ -59,7 +28,11 @@ public class Controlador implements IControladorRemoto {
         this.burako = burako;
     }
 
-    /** Constructor sin argumentos: usado por AppCliente antes de conectar con el servidor. */
+    /**
+    * Crea un controlador sin un modelo asociado. El modelo se asigna
+    * posteriormente cuando se establece la conexión con la partida.
+    */
+
     public Controlador() {
     }
 
@@ -93,7 +66,7 @@ public class Controlador implements IControladorRemoto {
         }
     }
 
-    /** NUEVO (Fase 10 - Soporte 2 o 4 jugadores). */
+    /** Asigna los nombres de todos los jugadores de la partida. */
     public void setNombres(List<String> nombres) {
         try {
             burako.setNombres(nombres);
@@ -101,8 +74,7 @@ public class Controlador implements IControladorRemoto {
             e.printStackTrace();
         }
     }
-
-    /** NUEVO (Fase 10 - Soporte 2 o 4 jugadores). */
+    /** Devuelve la cantidad de jugadores de la partida. */
     public int getCantidadJugadores() {
         try {
             return burako.getCantidadJugadores();
@@ -112,7 +84,7 @@ public class Controlador implements IControladorRemoto {
         }
     }
 
-    /** NUEVO (Fase 10 - Soporte 2 o 4 jugadores). */
+    /** Devuelve el equipo al que pertenece el jugador indicado. */
     public int getEquipo(int indice) {
         try {
             return burako.getEquipo(indice);

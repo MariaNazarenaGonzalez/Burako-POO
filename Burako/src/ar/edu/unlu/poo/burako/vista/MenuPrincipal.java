@@ -11,29 +11,11 @@ import java.rmi.RemoteException;
 import java.util.ArrayList;
 
 /**
- * Menú principal de la aplicación CLIENTE, completamente gráfico (Swing).
- * Es la primera ventana que ve cada jugador, antes de conectarse al
- * servidor. Ofrece conectarse a una partida (de 2 o 4 jugadores, según lo
- * que haya creado el servidor) o salir.
+ * Ventana principal de la aplicación cliente.
  *
- * MODIFICADO (Fase 9 - Integración RMIMVC):
- * - Ya NO crea el modelo (Burako) ni depende de PersistenciaService: el
- *   servidor (ver servidor.AppServidor) es el único propietario del modelo
- *   y de la persistencia. Cada proceso cliente representa a UN jugador
- *   (una Vista + un Controlador + un proxy remoto).
- *
- * MODIFICADO (Fase 10 - Soporte 2 o 4 jugadores):
- * - Antes, el menú ofrecía directamente los botones fijos "Jugador 1" /
- *   "Jugador 2", eligiendo el índice ANTES de conectar. Esto ya no es
- *   posible: el cliente no sabe si el servidor levantó una partida de 2 o
- *   de 4 jugadores hasta haberse conectado. Ahora el flujo es: conectar
- *   primero (obteniendo el proxy remoto del modelo mediante
- *   Cliente.iniciar), consultar controlador.getCantidadJugadores(), y
- *   recién entonces mostrar un selector con esa cantidad exacta de
- *   opciones ("Jugador 1".."Jugador N").
- * - preguntarTipoVista() y crearVista() se conservan textualmente iguales
- *   a los de fases anteriores: la Vista (VistaGrafica/VistaConsola) no
- *   sufre ningún cambio de código para esta fase.
+ * Permite establecer la conexión con el servidor, seleccionar el jugador
+ * que representará el cliente y crear la vista elegida para participar
+ * en la partida.
  */
 public class MenuPrincipal extends JFrame {
 
@@ -94,9 +76,8 @@ public class MenuPrincipal extends JFrame {
     }
 
     /**
-     * Pregunta qué jugador es esta ventana, ofreciendo exactamente tantas
-     * opciones como jugadores tenga la partida ya creada en el servidor
-     * (2 o 4). Retorna el índice 0-based elegido, o null si se canceló.
+     * Permite seleccionar el jugador que representará este cliente dentro
+     * de la partida y devuelve su índice correspondiente.
      */
     private Integer pedirIndiceJugador(Controlador controlador) {
         int cantidad = controlador.getCantidadJugadores();
@@ -134,8 +115,10 @@ public class MenuPrincipal extends JFrame {
         }
     }
 
-    // ── Construcción de la Vista (idéntico a fases anteriores) ──────────────
-
+    // ── Construcción de la Vista ──────────────
+    /**
+     * Solicita el tipo de interfaz que utilizará el jugador.
+     */
     private boolean preguntarTipoVista() {
         Object[] opciones = {"Swing", "Consola"};
         int seleccion = JOptionPane.showOptionDialog(
@@ -150,7 +133,10 @@ public class MenuPrincipal extends JFrame {
         );
         return seleccion == 1;
     }
-
+    /**
+     * Crea la vista seleccionada, la asocia al controlador y la muestra
+     * al usuario.
+     */
     private void crearVista(Controlador controlador, int jugador, boolean usarConsola) {
         if (usarConsola) {
             var vista = new VistaConsola(controlador, jugador);

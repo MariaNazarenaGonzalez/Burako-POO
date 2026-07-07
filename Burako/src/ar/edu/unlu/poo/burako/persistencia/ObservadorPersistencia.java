@@ -9,30 +9,12 @@ import java.rmi.RemoteException;
 import java.util.List;
 
 /**
- * Observador adicional, registrado junto al Controlador, que reacciona
- * exclusivamente al evento {@code partida_terminada} para persistir el
- * resultado final: actualiza las estadísticas de todos los {@link Usuario}
- * participantes, el Ranking, y elimina el guardado intermedio de la
- * partida (si existía).
+ * Observador encargado de persistir los resultados cuando una partida
+ * finaliza.
  *
- * NO modifica ni reemplaza al Controlador ni la lógica de persistencia:
- * es una implementación adicional que se agrega a la lista de observadores
- * que el modelo ya admite. Así, la persistencia automática de resultados
- * queda completamente desacoplada de la capa de Vista.
- *
- * IMPORTANTE: esta clase se instancia y se registra EXCLUSIVAMENTE en el
- * servidor (ver servidor.AppServidor), en el mismo proceso donde vive el
- * Burako real. Nunca se exporta como objeto remoto ni cruza la red: la
- * librería RMIMVC invoca actualizar() como una llamada Java local común
- * dentro de ObservableRemoto.notificarObservadores(), sin pasar por RMI.
- *
- * MODIFICADO (Fase 9 - Integración RMIMVC): implementa IObservadorRemoto en
- * lugar de nuestra interfaz local Observador (ver Burako.agregarObservador,
- * heredado de ObservableRemoto).
- *
- * MODIFICADO (Fase 10 - Soporte 2 o 4 jugadores): el constructor recibe una
- * List<Usuario> en lugar de exactamente 2, para funcionar igual con
- * partidas de 2 o de 4 jugadores sin duplicar la clase.
+ * Al recibir el evento de finalización actualiza las estadísticas de los
+ * jugadores, registra la información correspondiente en el ranking y
+ * elimina el guardado temporal de la partida, si existe.
  */
 public class ObservadorPersistencia implements IObservadorRemoto {
 

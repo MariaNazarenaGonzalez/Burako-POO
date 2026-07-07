@@ -395,7 +395,7 @@ public final class ReglasDeJuego {
     }
 
     // ══════════════════════════════════════════════════════════════════════════
-    // HELPERS PRIVADOS
+    // METODOS AUXILIARES PRIVADOS
     // ══════════════════════════════════════════════════════════════════════════
 
     private static ResultadoValidacion validarTurnoYEstado(
