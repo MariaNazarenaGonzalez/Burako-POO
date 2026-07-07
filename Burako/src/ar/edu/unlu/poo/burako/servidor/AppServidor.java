@@ -2,9 +2,11 @@ package ar.edu.unlu.poo.burako.servidor;
 
 import ar.edu.unlu.poo.burako.modelo.Burako;
 import ar.edu.unlu.poo.burako.modelo.EstadoTurno;
+import ar.edu.unlu.poo.burako.persistencia.IServicioRanking;
 import ar.edu.unlu.poo.burako.persistencia.ObservadorPersistencia;
 import ar.edu.unlu.poo.burako.persistencia.PartidaGuardada;
 import ar.edu.unlu.poo.burako.persistencia.PersistenciaService;
+import ar.edu.unlu.poo.burako.persistencia.ServicioRanking;
 import ar.edu.unlu.poo.burako.persistencia.Usuario;
 import ar.edu.unlu.rmimvc.RMIMVCException;
 import ar.edu.unlu.rmimvc.Util;
@@ -12,6 +14,7 @@ import ar.edu.unlu.rmimvc.servidor.Servidor;
 
 import javax.swing.*;
 import java.rmi.RemoteException;
+import java.rmi.AlreadyBoundException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -71,6 +74,7 @@ public class AppServidor {
         Servidor servidor = new Servidor(ip, puerto);
         try {
             servidor.iniciar(burako);
+            publicarServicioRanking(servidor, persistencia);
             String nombresJoin = String.join(" / ", usuarios.stream().map(Usuario::getNombre).collect(Collectors.toList()));
             JOptionPane.showMessageDialog(null,
                     "Servidor iniciado en " + ip + ":" + puerto + "\nPartida (" + cantidadJugadores
@@ -220,6 +224,22 @@ public class AppServidor {
         } catch (NumberFormatException e) {
             JOptionPane.showMessageDialog(null, "Puerto inválido.", "Error", JOptionPane.ERROR_MESSAGE);
             return -1;
+        }
+    }
+
+    /**
+     * Publica el servicio de ranking para que pueda ser
+     * consultado por los clientes.
+     *
+     * @param servidor servidor RMI.
+     * @param persistencia servicio de persistencia.
+     */
+    private static void publicarServicioRanking(Servidor servidor, PersistenciaService persistencia) {
+        try {
+            servidor.exportarObjeto(IServicioRanking.NOMBRE_REGISTRO, new ServicioRanking(persistencia));
+        } catch (RemoteException | AlreadyBoundException e) {
+            JOptionPane.showMessageDialog(null, "No se pudo publicar el servicio de ranking:\n" + e.getMessage(),
+                    "Error", JOptionPane.WARNING_MESSAGE);
         }
     }
 }

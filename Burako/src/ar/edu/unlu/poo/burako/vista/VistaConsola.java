@@ -70,7 +70,8 @@ public class VistaConsola extends JFrame implements VistaJuego {
         txtSalida = new JTextPane();
         txtSalida.setEditable(false);
         txtSalida.setFont(new Font("Monospaced", Font.BOLD, 14));
-        txtSalida.setForeground(new Color(0xD96443)); // color original del .form
+        txtSalida.setForeground(new Color(0x303030)); 
+        txtSalida.setBackground(Color.gray);
 
         scroll = new JScrollPane(txtSalida);
         scroll.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_ALWAYS);
@@ -404,7 +405,7 @@ public class VistaConsola extends JFrame implements VistaJuego {
         switch (color) {
             case "Rojo":     StyleConstants.setForeground(attrs, Color.RED);    break;
             case "Negro":    StyleConstants.setForeground(attrs, Color.BLACK);  break;
-            case "Amarillo": StyleConstants.setForeground(attrs, Color.YELLOW); break;
+            case "Amarillo": StyleConstants.setForeground(attrs, new Color(0xFFD54F)); break;
             case "Azul":     StyleConstants.setForeground(attrs, Color.BLUE);   break;
             default:         StyleConstants.setForeground(attrs, Color.BLACK);
         }

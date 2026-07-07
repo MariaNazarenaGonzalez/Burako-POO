@@ -28,18 +28,21 @@ public class MenuPrincipal extends JFrame {
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 
         JButton botonConectar = new JButton("Conectar a una partida");
+        JButton botonRanking = new JButton("Ver ranking");
         JButton botonSalir = new JButton("Salir");
 
         botonConectar.addActionListener(e -> flujoConectar());
+        botonRanking.addActionListener(e -> VistaRanking.mostrarConectandoAServidor(this));
         botonSalir.addActionListener(e -> System.exit(0));
 
-        JPanel contenido = new JPanel(new GridLayout(2, 1, 12, 12));
+        JPanel contenido = new JPanel(new GridLayout(3, 1, 12, 12));
         contenido.setBorder(BorderFactory.createEmptyBorder(24, 40, 24, 40));
         contenido.add(botonConectar);
+        contenido.add(botonRanking);
         contenido.add(botonSalir);
         setContentPane(contenido);
 
-        setSize(340, 180);
+        setSize(340, 220);
         setLocationRelativeTo(null);
     }
 

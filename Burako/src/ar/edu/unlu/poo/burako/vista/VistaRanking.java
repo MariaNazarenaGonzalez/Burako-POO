@@ -1,10 +1,13 @@
 package ar.edu.unlu.poo.burako.vista;
 
 import ar.edu.unlu.poo.burako.persistencia.EntradaRanking;
+import ar.edu.unlu.poo.burako.persistencia.IServicioRanking;
 
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
+import java.rmi.registry.LocateRegistry;
+import java.rmi.registry.Registry;
 import java.util.List;
 
 /**
@@ -64,5 +67,38 @@ public class VistaRanking extends JDialog {
         JTable tabla = new JTable(modelo);
         tabla.setFillsViewportHeight(true);
         return tabla;
+    }
+
+    public static void mostrarConectandoAServidor(JFrame padre) {
+        String ipServidor = JOptionPane.showInputDialog(padre, "IP del servidor:",
+                "Ranking - Conexión", JOptionPane.QUESTION_MESSAGE);
+        if (ipServidor == null || ipServidor.isBlank()) return;
+
+        int puertoServidor = pedirPuerto(padre, "Puerto del servidor", 8888);
+        if (puertoServidor < 0) return;
+
+        List<EntradaRanking> ranking;
+        try {
+            Registry registro = LocateRegistry.getRegistry(ipServidor, puertoServidor);
+            IServicioRanking servicio = (IServicioRanking) registro.lookup(IServicioRanking.NOMBRE_REGISTRO);
+            ranking = servicio.obtenerRanking();
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(padre, "No se pudo obtener el ranking:\n" + e.getMessage(),
+                    "Error de conexión", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        new VistaRanking(padre, ranking).setVisible(true);
+    }
+
+    private static int pedirPuerto(JFrame padre, String titulo, int porDefecto) {
+        String puerto = JOptionPane.showInputDialog(padre, titulo + ":", String.valueOf(porDefecto));
+        if (puerto == null) return -1;
+        try {
+            return Integer.parseInt(puerto.trim());
+        } catch (NumberFormatException e) {
+            JOptionPane.showMessageDialog(padre, "Puerto inválido.", "Error", JOptionPane.ERROR_MESSAGE);
+            return -1;
+        }
     }
 }
